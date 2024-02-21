@@ -1,7 +1,10 @@
 import tensorflow as tf
 import tensorflow.keras.backend as K
 
+# Dice loss
 def dice_coefficient(y_true, y_pred, smooth=1.0):
+    y_true = K.cast(y_true, 'float32')
+    y_pred = K.cast(y_pred, 'float32')
     intersection = K.sum(y_true * y_pred)
     union = K.sum(y_true) + K.sum(y_pred)
     dice = (2.0 * intersection + smooth) / (union + smooth)
@@ -10,8 +13,9 @@ def dice_coefficient(y_true, y_pred, smooth=1.0):
 def dice_loss(y_true, y_pred):
     return 1.0 - dice_coefficient(y_true, y_pred)
 
+
+# Combined losses
 def combined_loss(y_true, y_pred, alpha=0.5):
-    y_true = tf.cast(y_true, tf.float32)
     bce = tf.keras.losses.binary_focal_crossentropy(y_true, y_pred)
     dice = dice_loss(y_true, y_pred)
     combined = alpha * bce + (1 - alpha) * dice

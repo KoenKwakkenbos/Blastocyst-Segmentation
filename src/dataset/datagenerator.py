@@ -32,9 +32,11 @@ class DataGenerator(keras.utils.Sequence):
         self.transform = A.Compose([
             A.HorizontalFlip(p=0.5),
             A.VerticalFlip(p=0.5),
-            A.Rotate(limit=90, p=0.5, border_mode=cv2.BORDER_REPLICATE),
-            A.RandomBrightnessContrast(brightness_limit=(-0.5, 0.0), p=0.2),
+            # A.Rotate(limit=270, p=0.5, border_mode=cv2.BORDER_REPLICATE),
+            A.RandomRotate90(p=0.75),
+            A.RandomBrightnessContrast(brightness_limit=(-0.1, 0.1), contrast_limit=(-0.1, 0.1), p=1),
             A.RandomGamma(p=0.5),
+            A.GaussNoise(var_limit=(50.0, 100.0), p=0.7),
         ])
         self.on_epoch_end()
 
