@@ -2,13 +2,17 @@ import argparse
 import yaml
 import os
 
-from utils.loss_functions import dice_loss, weighted_bce_dice_loss
+import numpy as np
+
+from tensorflow.keras.metrics import BinaryIoU
+from sklearn.metrics import f1_score, jaccard_score
 
 from dataset.datagenerator import DataGenerator
+from utils.loss_functions import dice_loss, weighted_bce_dice_loss
 from networks.model import build_unet, build_rd_unet
-from tensorflow.keras.metrics import BinaryIoU
+from utils.postprocessing import postprocessing
 
-
+import matplotlib.pyplot as plt
 
 def process_experiment_file(file_path):
     """ Load the experiment file and return the data as a dictionary.
@@ -40,8 +44,32 @@ def get_experiment_id(exp_file):
         new_id = "001"
     return new_id
 
+def append_to_csv(experiment_file, experiment_dict, results_dict):
+    """ Append the experiment and results to a CSV file.
+    Parameters
+    ----------
+    file_path : str
+        Path to the CSV file
+    experiment_dict : dict
+        Dictionary containing the experiment parameters
+    results_dict : dict
+        Dictionary containing the results of the experiment
+    """
 
-def main():
+    file_path = os.path.join(os.path.dirname(experiment_file), "experiments.csv")
+
+    # Check if the file exists
+    if not os.path.isfile(file_path):
+        raise FileNotFoundError(f"The file {file_path} does not exist")
+
+    # Append the experiment and results to the file
+    with open(file_path, "a") as file:
+        experiment_values = ",".join([str(val) for val in experiment_dict.values()])
+        results_values = ",".join([str(val) for val in results_dict.values()])
+        file.write(experiment_values + "," + results_values + "\n")
+
+
+def main(): 
     parser = argparse.ArgumentParser(
         description='Train a model on a dataset'
     )
@@ -69,6 +97,8 @@ def main():
     experiment_id = get_experiment_id(args.experiment_file)
     experiment_folder = os.path.join(experiment['exp_dir'], f"experiment_{experiment_id}")
     os.makedirs(experiment_folder)
+
+    experiment_results = {}
 
     # Get the data for the selected fold
     for fold in range(experiment['n_folds']):
@@ -98,7 +128,7 @@ def main():
         test_datagen = DataGenerator(list_IDs=test_fn,
                                         img_path=experiment['img_dir'],
                                         mask_path=experiment['mask_dir'],
-                                        batch_size=1,
+                                        batch_size=8,
                                         dim=(800,800),
                                         n_channels=1,
                                         shuffle=False,
@@ -111,8 +141,26 @@ def main():
         # model.save(os.path.join(experiment_folder, f"model_fold_{fold+1}.h5"))
 
         # # Test the model and append results to csv file
-        # test_results = model.evaluate(test_datagen)
-        
+       
+        f1_scores = []
+        jaccard_scores = []
 
+        for test_images, test_masks in test_datagen:
+            preds_test = model.predict(test_images)
+            preds_test_t = (preds_test > 0.5).astype(np.uint8)
+
+            processed_preds_test_t = postprocessing(preds_test_t)
+
+            f1_scores.append(f1_score(test_masks.flatten(), processed_preds_test_t.flatten()))
+            jaccard_scores.append(jaccard_score(test_masks.flatten(), processed_preds_test_t.flatten()))
+
+
+        experiment_results[f"Fold{fold+1}_f1score"] = np.mean(f1_scores)
+        experiment_results[f"Fold{fold+1}_jaccardscore"] = np.mean(jaccard_scores)
+
+    # Save results of experiment
+    append_to_csv(args.experiment_file, experiment, experiment_results)
+
+        
 if __name__ == "__main__":
     main()

@@ -1,6 +1,7 @@
 import argparse
 import os
 import yaml
+import csv
 
 import numpy as np
 
@@ -67,6 +68,20 @@ def main():
         # Dump the output data to the file using the yaml module
         yaml.dump(output, yaml_file, default_flow_style=False, sort_keys=False)
 
+    # Prepare the CSV file for the experiments
+    
+    header_dict = list(vars(args).keys()) + ["model", "optimizer", "loss", "augmentation", "batch_size"]
+
+    # Specify the CSV file name
+    csv_file_name = 'experiments.csv'
+
+    # Check if the CSV file already exists
+    try:
+        with open(os.path.join(args.experiment_dir, csv_file_name), 'x', newline='') as file:
+            writer = csv.DictWriter(file, fieldnames=header_dict)
+            writer.writeheader()
+    except FileExistsError:
+        pass
 
 if __name__ == "__main__":
     main()
