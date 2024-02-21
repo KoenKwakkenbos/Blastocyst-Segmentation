@@ -14,6 +14,8 @@ def main():
     parser.add_argument("--image_dir", type=str, required=True, help="Path to the folder containing the images")
     parser.add_argument("--mask_dir", type=str, required=True, help="Path to the folder containing the masks")
     parser.add_argument("--experiment_dir", type=str, required=True, help="Path to the folder containing the experiments output")
+    parser.add_argument("--n_folds", type=int, default=4, help="Number of folds for cross-validation")
+    parser.add_argument("--n_epochs", type=int, default=100, help="Number of epochs for training")
 
     args = parser.parse_args()
 
@@ -23,9 +25,11 @@ def main():
 
     # Initialize the output
     output = {
-        "Image dir": args.image_dir,
-        "Mask dir": args.mask_dir,
-        "Experiment dir": args.experiment_dir
+        "img_dir": args.image_dir,
+        "mask_dir": args.mask_dir,
+        "exp_dir": args.experiment_dir,
+        "n_folds": args.n_folds,
+        "n_epochs": args.n_epochs,
     }
 
     files = os.listdir(args.mask_dir)
@@ -57,8 +61,6 @@ def main():
         
         # Store the test, train, and validation sets for the ith fold in the output dictionary
         output[f"Fold {i+1}"] = {"Test set": test_set.tolist(), "Train set": train_set.tolist(), "Validation set": valid_set.tolist()}
-
-    print(output)
 
     # Open a file for writing the output data in YAML format
     with open(os.path.join(args.experiment_dir, "output.yaml"), "w") as yaml_file:
