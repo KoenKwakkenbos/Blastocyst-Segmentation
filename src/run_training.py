@@ -1,9 +1,12 @@
 import argparse
 import yaml
 import os
+import csv 
 
 import numpy as np
+import pandas as pd
 
+from operator import itemgetter
 from tensorflow.keras.metrics import BinaryIoU
 from sklearn.metrics import f1_score, jaccard_score
 
@@ -62,11 +65,19 @@ def append_to_csv(experiment_file, experiment_dict, results_dict):
     if not os.path.isfile(file_path):
         raise FileNotFoundError(f"The file {file_path} does not exist")
 
-    # Append the experiment and results to the file
-    with open(file_path, "a") as file:
-        experiment_values = ",".join([str(val) for val in experiment_dict.values()])
-        results_values = ",".join([str(val) for val in results_dict.values()])
-        file.write(experiment_values + "," + results_values + "\n")
+    # Load the existing CSV file into a pandas DataFrame
+    df = pd.read_csv(file_path)
+
+    # Merge the experiment and results dictionaries into a single dictionary
+    combined_dict = {**experiment_dict, **results_dict}
+    combined_dict_df = pd.DataFrame(combined_dict, index=[0])
+    combined_dict_df['model'] = combined_dict_df['model'].values[0].__name__
+
+    # Append the combined dictionary to the DataFrame
+    df = pd.concat([df, combined_dict_df], ignore_index=True)
+
+    # Write the DataFrame back to the CSV file
+    df.to_csv(file_path, index=False)
 
 
 def main(): 
@@ -86,15 +97,18 @@ def main():
     experiment = process_experiment_file(args.experiment_file)
 
     # Set up additional experiment parameters
-    experiment['model_func'] = build_unet if args.model == "unet" else build_rd_unet
+    experiment['model'] = build_unet if args.model == "unet" else build_rd_unet
     experiment['optimizer'] = args.optimizer
     if args.loss not in ["binary_crossentropy", "binary_focal_crossentropy"]:
         experiment['loss'] = dice_loss if args.loss == "dice" else weighted_bce_dice_loss
+    else:
+        experiment['loss'] = args.loss
     experiment['augmentation'] = args.augmentation
     experiment['batch_size'] = args.batch_size
 
     # Make a folder for the experiment
     experiment_id = get_experiment_id(args.experiment_file)
+    experiment['ID'] = experiment_id
     experiment_folder = os.path.join(experiment['exp_dir'], f"experiment_{experiment_id}")
     os.makedirs(experiment_folder)
 
@@ -102,6 +116,8 @@ def main():
 
     # Get the data for the selected fold
     for fold in range(experiment['n_folds']):
+        print(f"[Experiment {experiment_id}] Training model for fold {fold+1}")
+
         train_ids, val_ids, test_ids = experiment[f"Fold {fold+1}"]["Train set"], experiment[f"Fold {fold+1}"]["Validation set"], experiment[f"Fold {fold+1}"]["Test set"]
 
         # Identify training, validation and test images if the filename contains the id of the patient:
@@ -115,7 +131,8 @@ def main():
                                       mask_path=experiment['mask_dir'],
                                       batch_size=experiment['batch_size'],
                                       dim=(800,800),
-                                      n_channels=1)
+                                      n_channels=1,
+                                      augmentation=['augmentation'])
         
         validation_datagen = DataGenerator(list_IDs=val_fn,
                                            img_path=experiment['img_dir'],
@@ -123,7 +140,7 @@ def main():
                                            batch_size=experiment['batch_size'],
                                            dim=(800,800),
                                            n_channels=1,
-                                           train=False)
+                                           augmentation=False)
         
         test_datagen = DataGenerator(list_IDs=test_fn,
                                         img_path=experiment['img_dir'],
@@ -132,15 +149,15 @@ def main():
                                         dim=(800,800),
                                         n_channels=1,
                                         shuffle=False,
-                                        train=False)
+                                        augmentation=False)
         
-        model = experiment['model_func'](input_shape=(800, 800, 1))
+        model = experiment['model'](input_shape=(800, 800, 1))
         model.compile(optimizer=args.optimizer, loss=args.loss, metrics=['accuracy', BinaryIoU()])
 
-        results = model.fit(train_datagen, validation_data=validation_datagen, epochs=experiment['n_epochs'])
-        # model.save(os.path.join(experiment_folder, f"model_fold_{fold+1}.h5"))
+        results = model.fit(train_datagen, validation_data=validation_datagen, steps_per_epoch=2, epochs=experiment['n_epochs'])
+        model.save(os.path.join(experiment_folder, f"model_fold_{fold+1}.h5"))
 
-        # # Test the model and append results to csv file
+        # Test the model and append results to csv file
        
         f1_scores = []
         jaccard_scores = []
@@ -153,13 +170,20 @@ def main():
 
             f1_scores.append(f1_score(test_masks.flatten(), processed_preds_test_t.flatten()))
             jaccard_scores.append(jaccard_score(test_masks.flatten(), processed_preds_test_t.flatten()))
+            break
 
 
         experiment_results[f"Fold{fold+1}_f1score"] = np.mean(f1_scores)
         experiment_results[f"Fold{fold+1}_jaccardscore"] = np.mean(jaccard_scores)
 
     # Save results of experiment
-    append_to_csv(args.experiment_file, experiment, experiment_results)
+        
+    print(experiment)
+    print(experiment_results)
+
+    append_to_csv(args.experiment_file, 
+                  {key: value for key, value in experiment.items() if key in ['ID', 'img_dir', 'mask_dir', 'exp_dir', 'n_folds', 'n_epochs', 'model', 'optimizer', 'loss', 'augmentation', 'batch_size']}, 
+                  experiment_results)
 
         
 if __name__ == "__main__":
