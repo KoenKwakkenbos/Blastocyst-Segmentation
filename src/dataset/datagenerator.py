@@ -81,8 +81,8 @@ class DataGenerator(keras.utils.Sequence):
         for i, ID in enumerate(list_IDs_temp):
 
             # Read image and mask
-            X[i,] = self.read_image(self.img_path + ID)
-            y[i] = self.read_image(self.mask_path + ID.replace('.JPG', '.tif'))
+            X[i,] = self.read_image(os.path.join(self.img_path, ID))
+            y[i] = self.read_image(os.path.join(self.mask_path, ID.replace('.JPG', '.tif')))
 
             if self.augmentation:
                 augmented = self.transform(image=X[i,], mask=y[i,])
