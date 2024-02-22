@@ -89,6 +89,7 @@ def main():
     parser.add_argument("--optimizer", type=str, required=False, choices=["adam", "sgd"], help="Optimizer to use for training")
     parser.add_argument("--loss", type=str, required=False, choices=["binary_crossentropy", "binary_focal_crossentropy", "dice", "dice_bce"], help="Loss function to use for training")
     parser.add_argument("--augmentation", type=bool, required=False, help="Whether to use data augmentation for training")
+    parser.add_argument("--normalization", type=str, required=False, choices=["min_max", "z_score"], help="Normalization method for input data")
     parser.add_argument("--batch_size", type=int, required=False, help="Batch size for training")
 
     args = parser.parse_args()
@@ -151,7 +152,7 @@ def main():
                                         shuffle=False,
                                         augmentation=False)
         
-        model = experiment['model'](input_shape=(800, 800, 1))
+        model = experiment['model'](input_shape=(800, 800, 1), normalization=args.normalization, print_summary=False)
         model.compile(optimizer=args.optimizer, loss=args.loss, metrics=['accuracy', BinaryIoU()])
 
         results = model.fit(train_datagen, validation_data=validation_datagen, steps_per_epoch=2, epochs=experiment['n_epochs'])
@@ -182,7 +183,7 @@ def main():
     print(experiment_results)
 
     append_to_csv(args.experiment_file, 
-                  {key: value for key, value in experiment.items() if key in ['ID', 'img_dir', 'mask_dir', 'exp_dir', 'n_folds', 'n_epochs', 'model', 'optimizer', 'loss', 'augmentation', 'batch_size']}, 
+                  {key: value for key, value in experiment.items() if key in ['ID', 'img_dir', 'mask_dir', 'exp_dir', 'n_folds', 'n_epochs', 'model', 'optimizer', 'loss', 'augmentation', 'normalization', 'batch_size']}, 
                   experiment_results)
 
         

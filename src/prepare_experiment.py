@@ -70,7 +70,7 @@ def main():
 
     # Prepare the CSV file for the experiments
     
-    header_dict = ["ID"] + [key for key in output.keys() if "Fold" not in key] + ["model", "optimizer", "loss", "augmentation", "batch_size"]
+    header_dict = ["ID"] + [key for key in output.keys() if "Fold" not in key] + ["model", "optimizer", "loss", "augmentation", "normalization", "batch_size"]
 
     # Specify the CSV file name
     csv_file_name = 'experiments.csv'
