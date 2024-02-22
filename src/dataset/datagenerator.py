@@ -18,7 +18,7 @@ def read_image(path):
 class DataGenerator(keras.utils.Sequence):
     'Generates data for Keras'
     def __init__(self, list_IDs, img_path, mask_path, batch_size=32, dim=(800,800), n_channels=1,
-                 n_classes=1, shuffle=True, train=True):
+                 n_classes=1, shuffle=True, augmentation=True):
         'Initialization'
         self.dim = dim
         self.batch_size = batch_size
@@ -28,15 +28,16 @@ class DataGenerator(keras.utils.Sequence):
         self.n_channels = n_channels
         self.n_classes = n_classes
         self.shuffle = shuffle
-        self.train = train
+        self.augmentation = augmentation
         self.transform = A.Compose([
-            A.HorizontalFlip(p=0.5),
-            A.VerticalFlip(p=0.5),
+            A.HorizontalFlip(p=0.75),
+            A.VerticalFlip(p=0.75),
+            A.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.1, rotate_limit=0, p=0.75, border_mode=cv2.BORDER_REPLICATE),
             # A.Rotate(limit=270, p=0.5, border_mode=cv2.BORDER_REPLICATE),
             A.RandomRotate90(p=0.75),
-            A.RandomBrightnessContrast(brightness_limit=(-0.1, 0.1), contrast_limit=(-0.1, 0.1), p=1),
-            A.RandomGamma(p=0.5),
-            A.GaussNoise(var_limit=(50.0, 100.0), p=0.7),
+            A.RandomBrightnessContrast(brightness_limit=(-0.2, 0.2), contrast_limit=(-0.15, 0.15), p=0.75),
+            # A.RandomGamma(p=0.5),
+            # A.GaussNoise(var_limit=(50.0, 100.0), p=0.7),
         ])
         self.on_epoch_end()
 
@@ -78,11 +79,12 @@ class DataGenerator(keras.utils.Sequence):
 
         # Generate data
         for i, ID in enumerate(list_IDs_temp):
+
             # Read image and mask
             X[i,] = self.read_image(self.img_path + ID)
             y[i] = self.read_image(self.mask_path + ID.replace('.JPG', '.tif'))
 
-            if self.train:
+            if self.augmentation:
                 augmented = self.transform(image=X[i,], mask=y[i,])
                 X[i,] = augmented['image']
                 y[i,] = augmented['mask']
@@ -103,11 +105,11 @@ if __name__ == "__main__":
     
     fig, axs = plt.subplots(2,4)
 
-    for i in range(2):
-        for j in range(4):
-            axs[i,j].imshow(X[i+j,], cmap='gray')
-            # axs[i,j].imshow(y[i+j,], cmap='jet', interpolation='nearest', alpha=0.5)
-            axs[i,j].axis('off')
+    for i in range(len(axs.ravel())):
+
+        axs.ravel()[i].imshow(X[i,], cmap='gray')
+        # axs.ravel()[i].imshow(y[i,], cmap='jet', interpolation='nearest', alpha=0.5)
+
     plt.tight_layout()
     # plt.imshow(X[0,], cmap='gray')
     # plt.imshow(y[0,], cmap='jet', interpolation='nearest', alpha=0.5)
