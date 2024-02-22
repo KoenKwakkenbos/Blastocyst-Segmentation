@@ -8,12 +8,13 @@ import pandas as pd
 
 from operator import itemgetter
 from tensorflow.keras.metrics import BinaryIoU
-from sklearn.metrics import f1_score, jaccard_score
+from sklearn.metrics import f1_score, jaccard_score, recall_score, precision_score
 
 from dataset.datagenerator import DataGenerator
 from utils.loss_functions import dice_loss, weighted_bce_dice_loss
 from networks.model import build_unet, build_rd_unet
 from utils.postprocessing import postprocessing
+from utils.metrics import specificity_score, save_loss_curve
 
 import matplotlib.pyplot as plt
 
@@ -153,15 +154,21 @@ def main():
                                         augmentation=False)
         
         model = experiment['model'](input_shape=(800, 800, 1), normalization=args.normalization, print_summary=False)
-        model.compile(optimizer=args.optimizer, loss=args.loss, metrics=['accuracy', BinaryIoU()])
+        model.compile(optimizer=args.optimizer, loss=args.loss, metrics=['accuracy', BinaryIoU(name='binary_io_u')])
 
-        results = model.fit(train_datagen, validation_data=validation_datagen, steps_per_epoch=2, epochs=experiment['n_epochs'])
+        results = model.fit(train_datagen, validation_data=validation_datagen, epochs=experiment['n_epochs'])
         model.save(os.path.join(experiment_folder, f"model_fold_{fold+1}.h5"))
+
+        # Save loss curve
+        save_loss_curve(experiment_folder, results, fold)
 
         # Test the model and append results to csv file
        
-        f1_scores = []
+        dice_scores = []
         jaccard_scores = []
+        sensitivity_scores = []
+        specificity_scores = []
+        precision_scores = []
 
         for test_images, test_masks in test_datagen:
             preds_test = model.predict(test_images)
@@ -169,19 +176,27 @@ def main():
 
             processed_preds_test_t = postprocessing(preds_test_t)
 
-            f1_scores.append(f1_score(test_masks.flatten(), processed_preds_test_t.flatten()))
+            dice_scores.append(f1_score(test_masks.flatten(), processed_preds_test_t.flatten()))
             jaccard_scores.append(jaccard_score(test_masks.flatten(), processed_preds_test_t.flatten()))
-            break
+            sensitivity_scores.append(recall_score(test_masks.flatten(), processed_preds_test_t.flatten()))
+            specificity_scores.append(specificity_score(test_masks.flatten(), processed_preds_test_t.flatten()))
+            precision_scores.append(precision_score(test_masks.flatten(), processed_preds_test_t.flatten()))
 
 
-        experiment_results[f"Fold{fold+1}_f1score"] = np.mean(f1_scores)
+        experiment_results[f"Fold{fold+1}_dicescore"] = np.mean(dice_scores)
         experiment_results[f"Fold{fold+1}_jaccardscore"] = np.mean(jaccard_scores)
+        experiment_results[f"Fold{fold+1}_sensitivityscore"] = np.mean(sensitivity_scores)
+        experiment_results[f"Fold{fold+1}_specificityscore"] = np.mean(specificity_scores)
+        experiment_results[f"Fold{fold+1}_precisionscore"] = np.mean(precision_scores)
 
-    # Save results of experiment
-        
-    print(experiment)
-    print(experiment_results)
+    # Calculate averages of the metrics
+    experiment_results['Average_dicescore'] = np.mean([experiment_results[f"Fold{fold+1}_dicescore"] for fold in range(experiment['n_folds'])])
+    experiment_results['Average_jaccardscore'] = np.mean([experiment_results[f"Fold{fold+1}_jaccardscore"] for fold in range(experiment['n_folds'])])
+    experiment_results['Average_sensitivityscore'] = np.mean([experiment_results[f"Fold{fold+1}_sensitivityscore"] for fold in range(experiment['n_folds'])])
+    experiment_results['Average_specificityscore'] = np.mean([experiment_results[f"Fold{fold+1}_specificityscore"] for fold in range(experiment['n_folds'])])
+    experiment_results['Average_precisionscore'] = np.mean([experiment_results[f"Fold{fold+1}_precisionscore"] for fold in range(experiment['n_folds'])])
 
+    # Append results to CSV
     append_to_csv(args.experiment_file, 
                   {key: value for key, value in experiment.items() if key in ['ID', 'img_dir', 'mask_dir', 'exp_dir', 'n_folds', 'n_epochs', 'model', 'optimizer', 'loss', 'augmentation', 'normalization', 'batch_size']}, 
                   experiment_results)
