@@ -9,11 +9,11 @@ Functions:
     build_rd_unet(input_height, input_width, input_channels): Builds a Residual Dilated U-Net model.
 """
 
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Conv2DTranspose, concatenate, Input, Lambda, Add, Activation, UpSampling2D
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Conv2DTranspose, concatenate, Input, Lambda, Add, Activation, UpSampling2D, Normalization
 from tensorflow.keras import Model
 
 
-def build_unet(input_shape=(800, 800, 1), filters=(16, 32, 64, 128, 256, 512), print_summary=True):
+def build_unet(input_shape=(800, 800, 1), filters=(16, 32, 64, 128, 256, 512), normalize='min_max', print_summary=True):
     """Builds a U-Net model.
     
     Parameters:
@@ -31,7 +31,10 @@ def build_unet(input_shape=(800, 800, 1), filters=(16, 32, 64, 128, 256, 512), p
     inputs = Input(shape=input_shape)
 
     # Normalize input data
-    normalized_inputs = Lambda(lambda x: x / 255)(inputs)
+    if normalize == 'min_max':
+        normalized_inputs = Lambda(lambda x: x / 255)(inputs)
+    elif normalize == 'z_score':
+        normalized_inputs = Normalization(axis=-1)(inputs)
 
     # Down sampling path
     conv1 = Conv2D(filters[0], (3, 3),  activation='relu', kernel_initializer='he_normal', padding='same')(normalized_inputs)
@@ -75,7 +78,7 @@ def build_unet(input_shape=(800, 800, 1), filters=(16, 32, 64, 128, 256, 512), p
     return model
 
 
-def build_rd_unet(input_shape=(800, 800, 1), print_summary=True):
+def build_rd_unet(input_shape=(800, 800, 1), normalization='min_max', print_summary=True):
     """Builds a Residual Dilated U-Net model.
     
     Parameters:
@@ -90,7 +93,10 @@ def build_rd_unet(input_shape=(800, 800, 1), print_summary=True):
     inputs = Input(input_shape)
 
     # Normalize input data
-    normalized_inputs = Lambda(lambda x: x / 255)(inputs)
+    if normalization == 'min_max':
+        normalized_inputs = Lambda(lambda x: x / 255)(inputs)
+    elif normalization == 'z_score':
+        normalized_inputs = Normalization(axis=-1)(inputs)
 
     # Down sampling path
     conv1 = Conv2D(8, (3, 3),  activation='relu', kernel_initializer='he_normal', padding='same')(normalized_inputs)
