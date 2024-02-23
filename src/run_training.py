@@ -90,7 +90,7 @@ def main():
     parser.add_argument("--optimizer", type=str, required=False, choices=["adam", "sgd"], help="Optimizer to use for training")
     parser.add_argument("--loss", type=str, required=False, choices=["binary_crossentropy", "binary_focal_crossentropy", "dice", "dice_bce"], help="Loss function to use for training")
     parser.add_argument("--augmentation", type=bool, required=False, help="Whether to use data augmentation for training")
-    parser.add_argument("--normalization", type=str, required=False, choices=["min_max", "z_score"], help="Normalization method for input data")
+    parser.add_argument("--normalization", type=str, required=False, choices=["min_max", "batchnorm"], help="Normalization method for input data")
     parser.add_argument("--batch_size", type=int, required=False, help="Batch size for training")
 
     args = parser.parse_args()
