@@ -19,6 +19,7 @@ def save_loss_curve(output_path, results, i_fold):
     ax2.plot(epochs, results.history["loss"], label = 'training')
     ax2.plot(epochs, results.history["val_loss"], label = 'validation')
     ax2.set(xlabel = 'Epochs',ylabel = 'Loss')
+    ax2.set_ylim(0, 0.45)
     ax2.legend()
 
     fig.tight_layout()
