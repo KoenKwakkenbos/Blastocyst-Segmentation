@@ -174,8 +174,10 @@ def main():
             preds_test = model.predict(test_images)
             preds_test_t = (preds_test > 0.5).astype(np.uint8)
 
+            # Postprocess batch
             processed_preds_test_t = postprocessing(preds_test_t)
 
+            # Calculate metrics            
             dice_scores.append(f1_score(test_masks.flatten(), processed_preds_test_t.flatten()))
             jaccard_scores.append(jaccard_score(test_masks.flatten(), processed_preds_test_t.flatten()))
             sensitivity_scores.append(recall_score(test_masks.flatten(), processed_preds_test_t.flatten()))

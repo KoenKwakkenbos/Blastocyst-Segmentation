@@ -24,3 +24,4 @@ def save_loss_curve(output_path, results, i_fold):
 
     fig.tight_layout()
     plt.savefig(os.path.join(output_path, 'val_acc_epochs' + str(i_fold+1) + '.png'))
+    plt.close()
