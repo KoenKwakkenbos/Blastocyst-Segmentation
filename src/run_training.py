@@ -89,7 +89,7 @@ def main():
     parser.add_argument("--model", type=str, required=False, choices=["unet", "rd_unet"] , help="Model to use for training")
     parser.add_argument("--optimizer", type=str, required=False, choices=["adam", "sgd"], help="Optimizer to use for training")
     parser.add_argument("--loss", type=str, required=False, choices=["binary_crossentropy", "binary_focal_crossentropy", "dice", "dice_bce"], help="Loss function to use for training")
-    parser.add_argument("--augmentation", type=bool, required=False, help="Whether to use data augmentation for training")
+    parser.add_argument("--augmentation", action=argparse.BooleanOptionalAction, help="Flag to use data augmentation for training")
     parser.add_argument("--normalization", type=str, required=False, choices=["min_max", "batchnorm"], help="Normalization method for input data")
     parser.add_argument("--batch_size", type=int, required=False, help="Batch size for training")
 
@@ -107,6 +107,7 @@ def main():
         experiment['loss'] = args.loss
     experiment['augmentation'] = args.augmentation
     experiment['batch_size'] = args.batch_size
+    experiment['normalization'] = args.normalization
 
     # Make a folder for the experiment
     experiment_id = get_experiment_id(args.experiment_file)
