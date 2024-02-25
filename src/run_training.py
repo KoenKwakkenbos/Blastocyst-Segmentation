@@ -73,6 +73,7 @@ def append_to_csv(experiment_file, experiment_dict, results_dict):
     combined_dict = {**experiment_dict, **results_dict}
     combined_dict_df = pd.DataFrame(combined_dict, index=[0])
     combined_dict_df['model'] = combined_dict_df['model'].values[0].__name__
+    combined_dict_df['loss'] = combined_dict_df['loss'].values[0].__name__
 
     # Append the combined dictionary to the DataFrame
     df = pd.concat([df, combined_dict_df], ignore_index=True)
@@ -155,7 +156,7 @@ def main():
                                         augmentation=False)
         
         model = experiment['model'](input_shape=(800, 800, 1), normalization=args.normalization, print_summary=False)
-        model.compile(optimizer=args.optimizer, loss=args.loss, metrics=['accuracy', BinaryIoU(name='binary_io_u')])
+        model.compile(optimizer=args.optimizer, loss=experiment['loss'], metrics=['accuracy', BinaryIoU(name='binary_io_u')])
 
         results = model.fit(train_datagen, validation_data=validation_datagen, epochs=experiment['n_epochs'])
         model.save(os.path.join(experiment_folder, f"model_fold_{fold+1}.h5"))
