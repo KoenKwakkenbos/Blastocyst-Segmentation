@@ -38,30 +38,32 @@ def main():
 
     # Shuffle the IDs randomly
     np.random.shuffle(ids)
+    print(len(ids))
 
     # Split the IDs into 4 folds
-    folds = np.array_split(ids, 4)
+    folds = np.array_split(ids, output['n_folds'])
 
     # Initialize a set to store the IDs that have been used for internal validation
-    used_ids = set()
+    # used_ids = set()
 
     # Loop over the folds
-    for i in range(4):
+    for i in range(output['n_folds']):
         # Select the ith fold as the test set
         test_set = folds[i]
         
         # Concatenate the remaining folds as the training set
-        train_set = np.concatenate([folds[j] for j in range(4) if j != i])
+        train_set = np.concatenate([folds[j] for j in range(output['n_folds']) if j != i])
         
         # Select 20% of the training set as the internal validation set
         # Make sure the IDs are not in the used_ids set
-        valid_set = np.random.choice([id for id in train_set if id not in used_ids], size=int(len(train_set) * 0.2), replace=False)
+        # valid_set = np.random.choice([id for id in train_set if id not in used_ids], size=int(len(train_set) * 0.2), replace=False)
         
         # Add the IDs in the validation set to the used_ids set
-        used_ids.update(valid_set)
+        # used_ids.update(valid_set)
         
         # Store the test, train, and validation sets for the ith fold in the output dictionary
-        output[f"Fold {i+1}"] = {"Test set": test_set.tolist(), "Train set": train_set.tolist(), "Validation set": valid_set.tolist()}
+        # output[f"Fold {i+1}"] = {"Test set": test_set.tolist(), "Train set": train_set.tolist(), "Validation set": valid_set.tolist()}
+        output[f"Fold {i+1}"] = {"Test set": test_set.tolist(), "Train set": train_set.tolist()}
 
     # Open a file for writing the output data in YAML format
     with open(os.path.join(args.experiment_dir, "output.yaml"), "w") as yaml_file:

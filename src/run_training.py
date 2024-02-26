@@ -8,6 +8,7 @@ import pandas as pd
 
 from operator import itemgetter
 from tensorflow.keras.metrics import BinaryIoU
+from tensorflow.keras.callbacks import LearningRateScheduler
 from sklearn.metrics import f1_score, jaccard_score, recall_score, precision_score
 
 from dataset.datagenerator import DataGenerator
@@ -81,6 +82,12 @@ def append_to_csv(experiment_file, experiment_dict, results_dict):
     # Write the DataFrame back to the CSV file
     df.to_csv(file_path, index=False)
 
+def scheduler(epoch, lr):
+    if epoch < 50:
+        return lr
+    else:
+        return lr * np.exp(-0.1)
+
 
 def main(): 
     parser = argparse.ArgumentParser(
@@ -122,11 +129,12 @@ def main():
     for fold in range(experiment['n_folds']):
         print(f"[Experiment {experiment_id}] Training model for fold {fold+1}")
 
-        train_ids, val_ids, test_ids = experiment[f"Fold {fold+1}"]["Train set"], experiment[f"Fold {fold+1}"]["Validation set"], experiment[f"Fold {fold+1}"]["Test set"]
+        # train_ids, val_ids, test_ids = experiment[f"Fold {fold+1}"]["Train set"], experiment[f"Fold {fold+1}"]["Validation set"], experiment[f"Fold {fold+1}"]["Test set"]
+        train_ids, test_ids = experiment[f"Fold {fold+1}"]["Train set"], experiment[f"Fold {fold+1}"]["Test set"]
 
         # Identify training, validation and test images if the filename contains the id of the patient:
         train_fn = sorted([file for file in os.listdir(experiment['img_dir']) if int(file.split('_')[0][1:]) in train_ids])
-        val_fn = sorted([file for file in os.listdir(experiment['img_dir']) if int(file.split('_')[0][1:]) in val_ids])
+        # val_fn = sorted([file for file in os.listdir(experiment['img_dir']) if int(file.split('_')[0][1:]) in val_ids])
         test_fn = sorted([file for file in os.listdir(experiment['img_dir']) if int(file.split('_')[0][1:]) in test_ids])
 
         # Initialize datagenerators
@@ -138,13 +146,13 @@ def main():
                                       n_channels=1,
                                       augmentation=['augmentation'])
         
-        validation_datagen = DataGenerator(list_IDs=val_fn,
-                                           img_path=experiment['img_dir'],
-                                           mask_path=experiment['mask_dir'],
-                                           batch_size=experiment['batch_size'],
-                                           dim=(800,800),
-                                           n_channels=1,
-                                           augmentation=False)
+        # validation_datagen = DataGenerator(list_IDs=val_fn,
+        #                                    img_path=experiment['img_dir'],
+        #                                    mask_path=experiment['mask_dir'],
+        #                                    batch_size=experiment['batch_size'],
+        #                                    dim=(800,800),
+        #                                    n_channels=1,
+        #                                    augmentation=False)
         
         test_datagen = DataGenerator(list_IDs=test_fn,
                                         img_path=experiment['img_dir'],
@@ -158,7 +166,10 @@ def main():
         model = experiment['model'](input_shape=(800, 800, 1), normalization=args.normalization, print_summary=False)
         model.compile(optimizer=args.optimizer, loss=experiment['loss'], metrics=['accuracy', BinaryIoU(name='binary_io_u')])
 
-        results = model.fit(train_datagen, validation_data=validation_datagen, epochs=experiment['n_epochs'])
+        # lr scheduler
+        lr_callback = LearningRateScheduler(scheduler)
+
+        results = model.fit(train_datagen, validation_data=test_datagen, epochs=experiment['n_epochs'], callbacks=[lr_callback])
         model.save(os.path.join(experiment_folder, f"model_fold_{fold+1}.h5"))
 
         # Save loss curve
