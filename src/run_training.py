@@ -74,7 +74,8 @@ def append_to_csv(experiment_file, experiment_dict, results_dict):
     combined_dict = {**experiment_dict, **results_dict}
     combined_dict_df = pd.DataFrame(combined_dict, index=[0])
     combined_dict_df['model'] = combined_dict_df['model'].values[0].__name__
-    combined_dict_df['loss'] = combined_dict_df['loss'].values[0].__name__
+    if callable(combined_dict_df['loss'].values[0]):
+        combined_dict_df['loss'] = combined_dict_df['loss'].values[0].__name__
 
     # Append the combined dictionary to the DataFrame
     df = pd.concat([df, combined_dict_df], ignore_index=True)
