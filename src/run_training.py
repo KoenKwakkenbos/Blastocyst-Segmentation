@@ -8,6 +8,7 @@ import pandas as pd
 
 from operator import itemgetter
 from tensorflow.keras.metrics import BinaryIoU
+from tensorflow.keras.optimizers import Adam, SGD
 from tensorflow.keras.callbacks import LearningRateScheduler
 from sklearn.metrics import f1_score, jaccard_score, recall_score, precision_score
 
@@ -165,7 +166,8 @@ def main():
                                         augmentation=False)
         
         model = experiment['model'](input_shape=(800, 800, 1), normalization=args.normalization, print_summary=False)
-        model.compile(optimizer=args.optimizer, loss=experiment['loss'], metrics=['accuracy', BinaryIoU(name='binary_io_u')])
+        #TODO make sure another optimizer can be used
+        model.compile(optimizer=Adam(learning_rate=1e-4), loss=experiment['loss'], metrics=['accuracy', BinaryIoU(name='binary_io_u')])
 
         # lr scheduler
         lr_callback = LearningRateScheduler(scheduler)
