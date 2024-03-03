@@ -166,8 +166,7 @@ def main():
                                         augmentation=False)
         
         model = experiment['model'](input_shape=(800, 800, 1), normalization=args.normalization, print_summary=False)
-        #TODO make sure another optimizer can be used
-        model.compile(optimizer=Adam(learning_rate=1e-4), loss=experiment['loss'], metrics=['accuracy', BinaryIoU(name='binary_io_u')])
+        model.compile(optimizer=experiment['optimizer'], loss=experiment['loss'], metrics=['accuracy', BinaryIoU(name='binary_io_u')])
 
         # lr scheduler
         lr_callback = LearningRateScheduler(scheduler)
@@ -199,6 +198,7 @@ def main():
             sensitivity_scores.append(recall_score(test_masks.flatten(), processed_preds_test_t.flatten()))
             specificity_scores.append(specificity_score(test_masks.flatten(), processed_preds_test_t.flatten()))
             precision_scores.append(precision_score(test_masks.flatten(), processed_preds_test_t.flatten()))
+
 
 
         experiment_results[f"Fold{fold+1}_dicescore"] = np.mean(dice_scores)
