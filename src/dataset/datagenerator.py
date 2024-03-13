@@ -33,7 +33,7 @@ class DataGenerator(keras.utils.Sequence):
             A.HorizontalFlip(p=0.75),
             A.VerticalFlip(p=0.75),
             A.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.1, rotate_limit=0, p=0.75, border_mode=cv2.BORDER_REPLICATE),
-            # A.Rotate(limit=270, p=0.5, border_mode=cv2.BORDER_REPLICATE),
+            A.Rotate(limit=270, p=0.75, border_mode=cv2.BORDER_REPLICATE),
             A.RandomRotate90(p=0.75),
             A.RandomBrightnessContrast(brightness_limit=(-0.2, 0.2), contrast_limit=(-0.15, 0.15), p=0.75),
             # A.RandomGamma(p=0.5),
