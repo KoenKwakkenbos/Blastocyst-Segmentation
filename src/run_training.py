@@ -6,7 +6,6 @@ import csv
 import numpy as np
 import pandas as pd
 
-from operator import itemgetter
 from tensorflow.keras.metrics import BinaryIoU
 from tensorflow.keras.optimizers import Adam, SGD
 from tensorflow.keras.callbacks import LearningRateScheduler
@@ -123,7 +122,7 @@ def main():
     experiment_id = get_experiment_id(args.experiment_file)
     experiment['ID'] = experiment_id
     experiment_folder = os.path.join(experiment['exp_dir'], f"experiment_{experiment_id}")
-    os.makedirs(experiment_folder)
+    os.makedirs(experiment_folder, exist_ok=True)
 
     experiment_results = {}
 
@@ -166,7 +165,7 @@ def main():
                                         augmentation=False)
         
         model = experiment['model'](input_shape=(800, 800, 1), normalization=args.normalization, print_summary=False)
-        model.compile(optimizer=experiment['optimizer'], loss=experiment['loss'], metrics=['accuracy', BinaryIoU(name='binary_io_u')])
+        model.compile(optimizer=experiment['optimizer'], loss=experiment['loss'], metrics=['accuracy', BinaryIoU(name='binary_io_u', target_class_ids=[1])])
 
         # lr scheduler
         lr_callback = LearningRateScheduler(scheduler)
