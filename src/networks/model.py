@@ -9,9 +9,9 @@ Functions:
     build_rd_unet(input_height, input_width, input_channels): Builds a Residual Dilated U-Net model.
 """
 
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Conv2DTranspose, concatenate, Input, Lambda, Add, Activation, UpSampling2D, Normalization, BatchNormalization
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Conv2DTranspose, concatenate, Input, Lambda, Add, Activation, UpSampling2D, Normalization, BatchNormalization, GlobalMaxPooling2D, Dense
 from tensorflow.keras import Model
-
+from tensorflow.keras.applications.resnet50 import ResNet50
 
 # def build_unet(input_shape=(800, 800, 1), filters=(16, 32, 64, 128, 256, 512), normalization='min_max', print_summary=True):
 #     """Builds a U-Net model.
@@ -425,7 +425,27 @@ def build_rd_unet(input_shape=(800, 800, 1), normalization='min_max', print_summ
     if print_summary:
         print(model.summary())
     
-    print(model.summary())
+    return model
+
+
+def build_resnet50(input_shape=(800, 800, 1), normalization='min_max', print_summary=True):
+    inputs = Input(input_shape)
+
+    # Normalize input data
+    if normalization == 'min_max':
+        normalized_inputs = Lambda(lambda x: x / 255)(inputs)
+    elif normalization == 'batchnorm':
+        normalized_inputs = BatchNormalization()(inputs)
+
+    resnet50 = ResNet50(include_top=False, weights=None, input_tensor=normalized_inputs, input_shape=input_shape, pooling=None)
+    pooling = GlobalMaxPooling2D()(resnet50.output)
+    
+    outputs = Dense(1, activation='sigmoid')(pooling)
+
+    model = Model(inputs=[inputs], outputs=[outputs])
+
+    if print_summary:
+        print(model.summary())
 
     return model
 
@@ -433,3 +453,8 @@ def build_rd_unet(input_shape=(800, 800, 1), normalization='min_max', print_summ
 
 if __name__ == '__main__':
     print("This module contains functions to build U-Net models.")
+    
+    model = build_resnet50()
+
+
+
