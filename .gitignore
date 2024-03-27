@@ -7,3 +7,6 @@ __pycache__/
 *.xlsx
 *.yaml
 *.h5
+*.png
+
+wandb/
