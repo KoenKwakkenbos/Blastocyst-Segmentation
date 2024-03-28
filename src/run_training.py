@@ -5,6 +5,7 @@ import csv
 
 import numpy as np
 import pandas as pd
+import wandb
 
 from tensorflow.keras.metrics import BinaryIoU
 from tensorflow.keras.optimizers import Adam, SGD
@@ -16,6 +17,7 @@ from utils.loss_functions import dice_loss, weighted_bce_dice_loss
 from networks.model import build_unet, build_rd_unet
 from utils.postprocessing import postprocessing
 from utils.metrics import specificity_score, save_loss_curve
+from wandb.keras import WandbMetricsLogger
 
 import matplotlib.pyplot as plt
 
@@ -87,7 +89,7 @@ def scheduler(epoch, lr):
     if epoch < 50:
         return lr
     else:
-        return lr * np.exp(-0.1)
+        return lr * np.exp(-0.025)
 
 
 def main(): 
@@ -170,7 +172,13 @@ def main():
         # lr scheduler
         lr_callback = LearningRateScheduler(scheduler)
 
-        results = model.fit(train_datagen, validation_data=test_datagen, epochs=experiment['n_epochs'], callbacks=[lr_callback])
+        # Init wandb run
+        run = wandb.init(
+            project = "Blastocyst-Segmentation",
+            config = experiment
+        )
+
+        results = model.fit(train_datagen, steps_per_epoch=train_datagen.__len__() * 2, validation_data=test_datagen, epochs=experiment['n_epochs'], callbacks=[lr_callback, WandbMetricsLogger()])
         model.save(os.path.join(experiment_folder, f"model_fold_{fold+1}.h5"))
 
         # Save loss curve
@@ -205,6 +213,10 @@ def main():
         experiment_results[f"Fold{fold+1}_sensitivityscore"] = np.mean(sensitivity_scores)
         experiment_results[f"Fold{fold+1}_specificityscore"] = np.mean(specificity_scores)
         experiment_results[f"Fold{fold+1}_precisionscore"] = np.mean(precision_scores)
+
+        # Finish logging the run
+        run.finish()
+
 
     # Calculate averages of the metrics
     experiment_results['Average_dicescore'] = np.mean([experiment_results[f"Fold{fold+1}_dicescore"] for fold in range(experiment['n_folds'])])

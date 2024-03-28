@@ -39,7 +39,7 @@ class DataGenerator(keras.utils.Sequence):
             A.RandomRotate90(p=0.75),
             A.RandomBrightnessContrast(brightness_limit=(-0.2, 0.2), contrast_limit=(-0.15, 0.15), p=0.75),
             # A.RandomGamma(p=0.5),
-            # A.GaussNoise(var_limit=(50.0, 100.0), p=0.7),
+            A.GaussNoise(var_limit=(0.0, 200.0), p=0.75),
         ])
         self.on_epoch_end()
 
@@ -119,7 +119,7 @@ class ClassificationDataGenerator(keras.utils.Sequence):
             A.RandomRotate90(p=0.75),
             A.RandomBrightnessContrast(brightness_limit=(-0.2, 0.2), contrast_limit=(-0.15, 0.15), p=0.75),
             # A.RandomGamma(p=0.5),
-            # A.GaussNoise(var_limit=(50.0, 100.0), p=0.7),
+            A.GaussNoise(var_limit=(0, 200), p=0.75),
         ])
         self.on_epoch_end()
 
@@ -163,14 +163,15 @@ class ClassificationDataGenerator(keras.utils.Sequence):
         for i, ID in enumerate(list_IDs_temp):
 
             # Read image and mask
-            X[i,] = self.read_image(os.path.join(self.img_path, str(int(ID)) + '.jpg'))
+            img = self.read_image(os.path.join(self.img_path, str(int(ID)) + '.jpg'))
+            X[i,] = np.stack((img,)*3, axis=-1)
             y[i] = self.labels.loc[ID, 'outcome']
 
             if self.augmentation:
                 augmented = self.transform(image=X[i,])
                 X[i,] = augmented['image']
 
-        X = np.expand_dims(X, axis=3)
+        # X = np.expand_dims(X, axis=3)
         # y = np.expand_dims(y, axis=3).astype(bool)
 
         return X, y
@@ -178,14 +179,14 @@ class ClassificationDataGenerator(keras.utils.Sequence):
 
 if __name__ == "__main__":
     IMG_PATH = r"C:\Users\koenk\Documents\Master_Thesis\Data\Processed_data\Prediction/"
-    df_path = r"C:\Users\koenk\OneDrive\Technical Medicine\Jaar 3\04 Master Thesis\inclusions for blst expansion project.xlsx"
+    df_path = r"C:\Users\koenk\OneDrive\Technical Medicine\Jaar 3\04 Master Thesis\inclusions for blst expansion project_werkversie.xlsx"
 
     df_label = pd.read_excel(df_path).set_index('Embryo_id')
     df_label = df_label.drop(df_label[df_label['Included']==0].index)
 
-    df_label['label'] = df_label['NRI_BioChemZwxconcl']
+    df_label['label'] = df_label['outcome']
 
-    datagen = ClassificationDataGenerator(list_IDs=df_label.index, img_path=IMG_PATH, label_df=df_label, batch_size=8, dim=(800,800), n_channels=1)
+    datagen = ClassificationDataGenerator(list_IDs=df_label.index, img_path=IMG_PATH, label_df=df_label, batch_size=8, dim=(800,800, 3), n_channels=1)
 
     X, y = datagen.__getitem__(0)
     
