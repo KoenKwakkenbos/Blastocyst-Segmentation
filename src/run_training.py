@@ -140,6 +140,9 @@ def main():
         # val_fn = sorted([file for file in os.listdir(experiment['img_dir']) if int(file.split('_')[0][1:]) in val_ids])
         test_fn = sorted([file for file in os.listdir(experiment['img_dir']) if int(file.split('_')[0][1:]) in test_ids])
 
+        # repeat the training files three times:
+        train_fn = train_fn * 3
+
         # Initialize datagenerators
         train_datagen = DataGenerator(list_IDs=train_fn,
                                       img_path=experiment['img_dir'],
@@ -178,7 +181,7 @@ def main():
             config = experiment
         )
 
-        results = model.fit(train_datagen, steps_per_epoch=train_datagen.__len__() * 2, validation_data=test_datagen, epochs=experiment['n_epochs'], callbacks=[lr_callback, WandbMetricsLogger()])
+        results = model.fit(train_datagen, validation_data=test_datagen, epochs=experiment['n_epochs'], callbacks=[lr_callback, WandbMetricsLogger()])
         model.save(os.path.join(experiment_folder, f"model_fold_{fold+1}.h5"))
 
         # Save loss curve
