@@ -7,10 +7,10 @@ import numpy as np
 import pandas as pd
 import wandb
 
-from tensorflow.keras.metrics import BinaryIoU
+from tensorflow.keras.metrics import AUC
 from tensorflow.keras.optimizers import Adam, SGD
 from tensorflow.keras.callbacks import LearningRateScheduler
-from sklearn.metrics import f1_score, jaccard_score, recall_score, precision_score
+from sklearn.metrics import f1_score, recall_score, precision_score, accuracy_score, roc_auc_score
 
 from dataset.datagenerator import ClassificationDataGenerator
 # from utils.loss_functions import dice_loss, weighted_bce_dice_loss
@@ -89,7 +89,7 @@ def scheduler(epoch, lr):
     if epoch < 50:
         return lr
     else:
-        return lr * np.exp(-0.1)
+        return lr * np.exp(-0.025)
 
 
 def main(): 
@@ -132,42 +132,35 @@ def main():
         # train_ids, val_ids, test_ids = experiment[f"Fold {fold+1}"]["Train set"], experiment[f"Fold {fold+1}"]["Validation set"], experiment[f"Fold {fold+1}"]["Test set"]
         train_ids, test_ids = experiment[f"Fold {fold+1}"]["Train set"], experiment[f"Fold {fold+1}"]["Test set"]
 
-        # Identify training, validation and test images if the filename contains the id of the patient:
-        # train_fn = sorted([file for file in os.listdir(experiment['img_dir']) if int(file.split('.')[0]) in train_ids])
-        # # val_fn = sorted([file for file in os.listdir(experiment['img_dir']) if int(file.split('_')[0][1:]) in val_ids])
-        # test_fn = sorted([file for file in os.listdir(experiment['img_dir']) if int(file.split('.')[0]) in test_ids])
-        
-        # print(train_ids)
-        # print(test_fn)
+        # oversampling:
+        train_ids = train_ids * 5
 
         # Initialize datagenerators
         train_datagen = ClassificationDataGenerator(list_IDs=train_ids,
                                       img_path=experiment['img_dir'],
                                       label_df=pd.read_csv(experiment['label_file']).set_index('ID'),
                                       batch_size=experiment['batch_size'],
-                                      dim=(800,800),
+                                      dim=(800, 800),
                                       n_channels=1,
-                                      augmentation=['augmentation'])
-        
-        # validation_datagen = DataGenerator(list_IDs=val_fn,
-        #                                    img_path=experiment['img_dir'],
-        #                                    mask_path=experiment['mask_dir'],
-        #                                    batch_size=experiment['batch_size'],
-        #                                    dim=(800,800),
-        #                                    n_channels=1,
-        #                                    augmentation=False)
+                                      augmentation=['augmentation'],
+                                      mask_path=experiment['img_dir']+'/masks/',
+                                      mode=1)
         
         test_datagen = ClassificationDataGenerator(list_IDs=test_ids,
                                         img_path=experiment['img_dir'],
                                         label_df=pd.read_csv(experiment['label_file']).set_index('ID'),
                                         batch_size=8,
-                                        dim=(800,800),
+                                        dim=(800, 800),
                                         n_channels=1,
                                         shuffle=False,
-                                        augmentation=False)
+                                        augmentation=False,
+                                        mask_path=experiment['img_dir']+'/masks/',
+                                        mode=1)
         
-        model = experiment['model'](input_shape=(800, 800, 1), normalization=args.normalization, print_summary=False)
-        model.compile(optimizer=Adam(lr=0.0001), loss=experiment['loss'], metrics=['accuracy', BinaryIoU(name='binary_io_u', target_class_ids=[1])])
+        model = experiment['model'](input_shape=(256, 256, 1), normalization=args.normalization, print_summary=False)
+        
+        
+        model.compile(optimizer=Adam(), loss=experiment['loss'], metrics=['accuracy', AUC()])
 
         # lr scheduler
         lr_callback = LearningRateScheduler(scheduler)
@@ -180,34 +173,33 @@ def main():
         )
 
         results = model.fit(train_datagen, validation_data=test_datagen, epochs=experiment['n_epochs'], callbacks=[lr_callback, WandbMetricsLogger()])
-    #     model.save(os.path.join(experiment_folder, f"model_fold_{fold+1}.h5"))
+        model.save(os.path.join(experiment_folder, f"model_fold_{fold+1}.h5"))
 
-    #     # Save loss curve
-    #     save_loss_curve(experiment_folder, results, fold)
+        # # Save loss curve
+        # save_loss_curve(experiment_folder, results, fold)
 
-    #     # Test the model and append results to csv file
+        # Test the model and append results to csv file
        
-    #     dice_scores = []
-    #     jaccard_scores = []
-    #     sensitivity_scores = []
-    #     specificity_scores = []
-    #     precision_scores = []
+        accuracy_scores = []
+        roc_auc_scores = []
+        # sensitivity_scores = []
+        # specificity_scores = []
+        # precision_scores = []
 
-    #     for test_images, test_masks in test_datagen:
-    #         preds_test = model.predict(test_images)
-    #         preds_test_t = (preds_test > 0.5).astype(np.uint8)
+        for test_images, label in test_datagen:
+            preds_test = model.predict(test_images)
 
-    #         # Postprocess batch
-    #         processed_preds_test_t = postprocessing(preds_test_t)
+            preds_test = preds_test > 0.5
 
-    #         # Calculate metrics            
-    #         dice_scores.append(f1_score(test_masks.flatten(), processed_preds_test_t.flatten()))
-    #         jaccard_scores.append(jaccard_score(test_masks.flatten(), processed_preds_test_t.flatten()))
+            # Calculate metrics            
+            accuracy_scores.append(accuracy_score(label, preds_test))
+            roc_auc_scores.append(roc_auc_score(label, preds_test))
     #         sensitivity_scores.append(recall_score(test_masks.flatten(), processed_preds_test_t.flatten()))
     #         specificity_scores.append(specificity_score(test_masks.flatten(), processed_preds_test_t.flatten()))
     #         precision_scores.append(precision_score(test_masks.flatten(), processed_preds_test_t.flatten()))
 
-    #     experiment_results[f"Fold{fold+1}_dicescore"] = np.mean(dice_scores)
+        experiment_results[f"Fold{fold+1}_accuracyscore"] = np.mean(accuracy_scores)
+        experiment_results[f"Fold{fold+1}_roc_aucscore"] = np.mean(roc_auc_scores)
     #     experiment_results[f"Fold{fold+1}_jaccardscore"] = np.mean(jaccard_scores)
     #     experiment_results[f"Fold{fold+1}_sensitivityscore"] = np.mean(sensitivity_scores)
     #     experiment_results[f"Fold{fold+1}_specificityscore"] = np.mean(specificity_scores)
@@ -216,16 +208,18 @@ def main():
         run.finish()
 
     # # Calculate averages of the metrics
+    experiment_results['Average_accuracyscore'] = np.mean([experiment_results[f"Fold{fold+1}_accuracyscore"] for fold in range(experiment['n_folds'])])
+    experiment_results['Average_roc_aucscore'] = np.mean([experiment_results[f"Fold{fold+1}_roc_aucscore"] for fold in range(experiment['n_folds'])])   
     # experiment_results['Average_dicescore'] = np.mean([experiment_results[f"Fold{fold+1}_dicescore"] for fold in range(experiment['n_folds'])])
     # experiment_results['Average_jaccardscore'] = np.mean([experiment_results[f"Fold{fold+1}_jaccardscore"] for fold in range(experiment['n_folds'])])
     # experiment_results['Average_sensitivityscore'] = np.mean([experiment_results[f"Fold{fold+1}_sensitivityscore"] for fold in range(experiment['n_folds'])])
     # experiment_results['Average_specificityscore'] = np.mean([experiment_results[f"Fold{fold+1}_specificityscore"] for fold in range(experiment['n_folds'])])
     # experiment_results['Average_precisionscore'] = np.mean([experiment_results[f"Fold{fold+1}_precisionscore"] for fold in range(experiment['n_folds'])])
 
-    # # Append results to CSV
-    # append_to_csv(args.experiment_file, 
-    #               {key: value for key, value in experiment.items() if key in ['ID', 'img_dir', 'mask_dir', 'exp_dir', 'n_folds', 'n_epochs', 'model', 'optimizer', 'loss', 'augmentation', 'normalization', 'batch_size']}, 
-    #               experiment_results)
+    # Append results to CSV
+    append_to_csv(args.experiment_file, 
+                  {key: value for key, value in experiment.items() if key in ['ID', 'img_dir', 'mask_dir', 'exp_dir', 'n_folds', 'n_epochs', 'model', 'optimizer', 'loss', 'augmentation', 'normalization', 'batch_size']}, 
+                  experiment_results)
 
     
         
