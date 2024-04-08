@@ -100,7 +100,7 @@ class DataGenerator(keras.utils.Sequence):
 
 class ClassificationDataGenerator(keras.utils.Sequence):
     'Generates data for Keras'
-    def __init__(self, list_IDs, img_path, label_df, batch_size=32, dim=(256,256), n_channels=1,
+    def __init__(self, list_IDs, img_path, label_df, batch_size=32, dim=(800,800), n_channels=1,
                  n_classes=1, shuffle=True, augmentation=True, mask_path=None, mode=1):
         'Initialization'
         self.dim = (*dim, n_channels)
@@ -120,7 +120,7 @@ class ClassificationDataGenerator(keras.utils.Sequence):
             A.RandomBrightnessContrast(brightness_limit=(-0.2, 0.2), contrast_limit=(-0.15, 0.15), p=0.75),
             # A.RandomGamma(p=0.5),
             A.GaussNoise(var_limit=(0, 200), p=0.75),
-            A.Defocus(radius=(1, 3), p=1)
+            A.Defocus(radius=(1, 3), p=0.75)
         ])
         self.mode = mode
         self.mask_path = mask_path
