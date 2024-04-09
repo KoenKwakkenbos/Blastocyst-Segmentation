@@ -117,10 +117,10 @@ class ClassificationDataGenerator(keras.utils.Sequence):
             A.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.1, rotate_limit=0, p=0.75, border_mode=cv2.BORDER_CONSTANT),
             A.Rotate(limit=270, p=0.75, border_mode=cv2.BORDER_CONSTANT),
             A.RandomRotate90(p=0.75),
-            A.RandomBrightnessContrast(brightness_limit=(-0.2, 0.2), contrast_limit=(-0.15, 0.15), p=0.75),
+            # A.RandomBrightnessContrast(brightness_limit=(-0.2, 0.2), contrast_limit=(-0.15, 0.15), p=0.75),
             # A.RandomGamma(p=0.5),
             A.GaussNoise(var_limit=(0, 200), p=0.75),
-            A.Defocus(radius=(1, 3), p=0.75)
+            # A.Defocus(radius=(1, 3), p=0.75)
         ])
         self.mode = mode
         self.mask_path = mask_path
@@ -133,7 +133,7 @@ class ClassificationDataGenerator(keras.utils.Sequence):
     def __getitem__(self, index):
         'Generate one batch of data'
         # Generate indexes of the batch
-        indexes = self.indexes[index*self.batch_size:(index+1)*self.batch_size]\
+        indexes = self.indexes[index*self.batch_size:(index+1)*self.batch_size]
 
         # Find list of IDs
         list_IDs_temp = [self.list_IDs[k] for k in indexes]
@@ -155,13 +155,42 @@ class ClassificationDataGenerator(keras.utils.Sequence):
 
         return img
     
-    def crop_around_mask(self, image, mask):
-        """Crops the image around the non-zero regions of the mask."""
+    def center_image_and_mask(self, image, mask):
+        """Centers the image and mask while keeping the original image size."""
+
+        # Use the crop_around_mask function to find the bounding box of the mask
         rows, cols = np.where(mask > 0)
         ymin, ymax = rows.min(), rows.max() + 1
         xmin, xmax = cols.min(), cols.max() + 1
-        cropped_image = image[ymin:ymax, xmin:xmax]
-        return cropped_image
+
+        # Calculate the center of the bounding box
+        center_y = (ymin + ymax) // 2
+        center_x = (xmin + xmax) // 2
+
+        # Calculate the center of the original image
+        image_center_y = image.shape[0] // 2
+        image_center_x = image.shape[1] // 2
+
+        # Calculate the offset needed to move the bounding box to the center of the image
+        offset_y = image_center_y - center_y
+        offset_x = image_center_x - center_x
+
+        # Create new arrays for the centered image and mask
+        centered_image = np.zeros_like(image)
+        centered_mask = np.zeros_like(mask)
+
+        # Apply the offset to the image and mask
+        centered_image[max(0, offset_y):min(image.shape[0], image.shape[0] + offset_y),
+                    max(0, offset_x):min(image.shape[1], image.shape[1] + offset_x)] = \
+            image[max(0, -offset_y):min(image.shape[0], image.shape[0] - offset_y),
+                max(0, -offset_x):min(image.shape[1], image.shape[1] - offset_x)]
+
+        centered_mask[max(0, offset_y):min(mask.shape[0], mask.shape[0] + offset_y),
+                    max(0, offset_x):min(mask.shape[1], mask.shape[1] + offset_x)] = \
+            mask[max(0, -offset_y):min(mask.shape[0], mask.shape[0] - offset_y),
+                max(0, -offset_x):min(mask.shape[1], mask.shape[1] - offset_x)]
+
+        return centered_image, centered_mask
 
     # def pad_to_original_size(self, image, original_shape):
     #     """Pads the image with zeros to match the original shape."""
@@ -175,7 +204,7 @@ class ClassificationDataGenerator(keras.utils.Sequence):
         'Generates data containing batch_size samples'
         # Initialization
         X = np.empty((self.batch_size, *self.dim), dtype=np.uint8)
-        y = np.empty(self.batch_size, dtype=np.uint8)
+        y = np.empty(self.batch_size, dtype=float)
 
         if self.mode != 1:
             X_mask = np.empty((self.batch_size, *self.dim), dtype=np.uint8)
@@ -224,6 +253,7 @@ class ClassificationDataGenerator(keras.utils.Sequence):
         
         elif self.mode == 3:
             # Generate data
+            print(list_IDs_temp)
             for i, ID in enumerate(list_IDs_temp):
 
                 # Read image and mask
@@ -237,15 +267,20 @@ class ClassificationDataGenerator(keras.utils.Sequence):
                     # X[i,] = np.expand_dims(augmented['image'] * augmented['mask'], -1)
 
                         # Crop around the mask
-                    img_cropped = self.crop_around_mask(augmented['image'] * augmented['mask'], augmented['mask'])
+                    img_cropped, _ = self.center_image_and_mask(augmented['image'] * augmented['mask'], augmented['mask'])
                     
-                    # pad 10 pixels around the cropped image
-                    img_cropped = cv2.copyMakeBorder(img_cropped, 10, 10, 10, 10, cv2.BORDER_CONSTANT, value=0)
+                    # # pad 10 pixels around the cropped image
+                    # img_cropped = cv2.copyMakeBorder(img_cropped, 10, 10, 10, 10, cv2.BORDER_CONSTANT, value=0)
 
-                    # Pad to original size if necessary
-                    img_cropped = cv2.resize(img_cropped, (self.dim[0], self.dim[1]))
+                    # # Pad to original size if necessary
+                    # img_cropped = cv2.resize(img_cropped, (self.dim[0], self.dim[1]))
+                
+                    # img_cropped = augmented['image'] * augmented['mask']
 
                     X[i,] = np.expand_dims(img_cropped, -1)
+                else:
+                    img, _ = self.center_image_and_mask(img * mask, mask)
+                    X[i,] = np.expand_dims(img, -1)
             
                 # ELSE!
 
@@ -261,7 +296,7 @@ if __name__ == "__main__":
 
     df_label['label'] = df_label['outcome']
 
-    datagen = ClassificationDataGenerator(list_IDs=df_label.index, img_path=IMG_PATH, label_df=df_label, batch_size=8, dim=(800, 800), n_channels=1, mode=3, mask_path=IMG_PATH+'masks/')
+    datagen = ClassificationDataGenerator(list_IDs=df_label.index, img_path=IMG_PATH, shuffle=True, augmentation=False, label_df=df_label, batch_size=8, dim=(800, 800), n_channels=1, mode=3, mask_path=IMG_PATH+'masks/')
 
     X, y = datagen.__getitem__(0)
     

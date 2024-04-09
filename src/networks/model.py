@@ -9,9 +9,10 @@ Functions:
     build_rd_unet(input_height, input_width, input_channels): Builds a Residual Dilated U-Net model.
 """
 
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Conv2DTranspose, concatenate, Input, Lambda, Add, Activation, UpSampling2D, Normalization, BatchNormalization, GlobalMaxPooling2D, Dense
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Conv2DTranspose, concatenate, Input, Lambda, Add, Activation, UpSampling2D, Normalization, BatchNormalization, GlobalMaxPooling2D, Dense, GlobalAveragePooling2D
 from tensorflow.keras import Model
 from tensorflow.keras.applications.resnet50 import ResNet50
+from tensorflow.keras.applications.mobilenet import MobileNet
 
 # def build_unet(input_shape=(800, 800, 1), filters=(16, 32, 64, 128, 256, 512), normalization='min_max', print_summary=True):
 #     """Builds a U-Net model.
@@ -428,6 +429,33 @@ def build_rd_unet(input_shape=(800, 800, 1), normalization='min_max', print_summ
     return model
 
 
+# def build_resnet50(input_shape=(800, 800, 1), normalization='min_max', print_summary=True):
+#     inputs = Input(input_shape)
+
+#     # Normalize input data
+#     if normalization == 'min_max':
+#         normalized_inputs = Lambda(lambda x: x / 255)(inputs)
+#     elif normalization == 'batchnorm':
+#         normalized_inputs = BatchNormalization()(inputs)
+
+#     resnet50 = MobileNet(include_top=False, weights=None, input_tensor=normalized_inputs, input_shape=input_shape, pooling=None)
+#     resnet50.trainable = True
+#     pooling = GlobalAveragePooling2D()(resnet50.output)
+
+#     fc1 = Dense(256, activation='relu')(pooling)
+#     fc2 = Dense(128, activation='relu')(fc1)
+
+    
+#     outputs = Dense(1, activation='sigmoid')(fc2)
+
+#     model = Model(inputs=[inputs], outputs=[outputs])
+
+#     if print_summary:
+#         print(model.summary())
+
+#     return model
+
+
 def build_resnet50(input_shape=(800, 800, 1), normalization='min_max', print_summary=True):
     inputs = Input(input_shape)
 
@@ -437,10 +465,48 @@ def build_resnet50(input_shape=(800, 800, 1), normalization='min_max', print_sum
     elif normalization == 'batchnorm':
         normalized_inputs = BatchNormalization()(inputs)
 
-    resnet50 = ResNet50(include_top=False, weights=None, input_tensor=normalized_inputs, input_shape=input_shape, pooling=None)
-    pooling = GlobalMaxPooling2D()(resnet50.output)
-    
-    outputs = Dense(1, activation='sigmoid')(pooling)
+    conv1 = Conv2D(16, 5, padding='same', use_bias=False)(normalized_inputs)
+    conv1 = BatchNormalization()(conv1)
+    conv1 = Activation('relu')(conv1)
+    conv1 = Conv2D(16, 5, padding='same', use_bias=False)(conv1)
+    conv1 = BatchNormalization()(conv1)
+    conv1 = Activation('relu')(conv1)
+
+    pool1 = MaxPooling2D((2, 2))(conv1)
+    conv2 = Conv2D(32, 5, padding='same', use_bias=False)(pool1)
+    conv2 = BatchNormalization()(conv2)
+    conv2 = Activation('relu')(conv2)
+    conv2 = Conv2D(32, 5, padding='same', use_bias=False)(conv2)
+    conv2 = BatchNormalization()(conv2)
+    conv2 = Activation('relu')(conv2)
+
+    pool2 = MaxPooling2D((2, 2))(conv2)
+    conv3 = Conv2D(64, 5, padding='same', use_bias=False)(pool2)
+    conv3 = BatchNormalization()(conv3)
+    conv3 = Activation('relu')(conv3)
+    conv3 = Conv2D(64, 5, padding='same', use_bias=False)(conv3)
+    conv3 = BatchNormalization()(conv3)
+    conv3 = Activation('relu')(conv3)
+
+    pool3 = MaxPooling2D((2, 2))(conv3)
+    conv4 = Conv2D(128, 5, padding='same', use_bias=False)(pool3)
+    conv4 = BatchNormalization()(conv4)
+    conv4 = Activation('relu')(conv4)
+    conv4 = Conv2D(128, 5, padding='same', use_bias=False)(conv4)
+    conv4 = BatchNormalization()(conv4)
+    conv4 = Activation('relu')(conv4)
+
+    pool4 = MaxPooling2D((2, 2))(conv4)
+    conv5 = Conv2D(256, 5, padding='same', use_bias=False)(pool4)
+    conv5 = BatchNormalization()(conv5)
+    conv5 = Activation('relu')(conv5)
+    conv5 = Conv2D(256, 5, padding='same', use_bias=False)(conv5)
+    conv5 = BatchNormalization()(conv5)
+           
+    global_avg_pooling = GlobalAveragePooling2D()(conv5)
+    dense1 = Dense(128, activation='relu')(global_avg_pooling)
+    dense2 = Dense(128, activation='relu')(dense1)
+    outputs = Dense(1, activation='sigmoid')(dense2)
 
     model = Model(inputs=[inputs], outputs=[outputs])
 
@@ -450,11 +516,10 @@ def build_resnet50(input_shape=(800, 800, 1), normalization='min_max', print_sum
     return model
 
 
-
 if __name__ == '__main__':
     print("This module contains functions to build U-Net models.")
     
-    model = build_resnet50()
+    model = build_resnet50(input_shape=(800, 800, 3),)
 
 
 

@@ -133,8 +133,8 @@ def main():
         train_ids, test_ids = experiment[f"Fold {fold+1}"]["Train set"], experiment[f"Fold {fold+1}"]["Test set"]
 
         # oversampling:
-        train_ids = train_ids * 5
-
+        #train_ids = train_ids * 5
+ 
         # Initialize datagenerators
         train_datagen = ClassificationDataGenerator(list_IDs=train_ids,
                                       img_path=experiment['img_dir'],
@@ -144,7 +144,7 @@ def main():
                                       n_channels=1,
                                       augmentation=['augmentation'],
                                       mask_path=experiment['img_dir']+'/masks/',
-                                      mode=1)
+                                      mode=3)
         
         test_datagen = ClassificationDataGenerator(list_IDs=test_ids,
                                         img_path=experiment['img_dir'],
@@ -155,22 +155,27 @@ def main():
                                         shuffle=False,
                                         augmentation=False,
                                         mask_path=experiment['img_dir']+'/masks/',
-                                        mode=1)
-        
-        model = experiment['model'](input_shape=(256, 256, 1), normalization=args.normalization, print_summary=False)
-        
-        
+                                        mode=3)
+
+        model = experiment['model'](input_shape=(800, 800, 1), normalization=args.normalization, print_summary=False)
+
+
         model.compile(optimizer=Adam(), loss=experiment['loss'], metrics=['accuracy', AUC()])
 
         # lr scheduler
         lr_callback = LearningRateScheduler(scheduler)
-        
-        
+
+
         # init wandb run
         run = wandb.init(
             project = "Blastocyst-Prediction",
             config = experiment
         )
+
+        X, y = train_datagen.__getitem__(0)
+        plt.imshow(X[0].reshape(800, 800), cmap='gray')
+        plt.title(f"Label: {y[0]}")
+        plt.show()
 
         results = model.fit(train_datagen, validation_data=test_datagen, epochs=experiment['n_epochs'], callbacks=[lr_callback, WandbMetricsLogger()])
         model.save(os.path.join(experiment_folder, f"model_fold_{fold+1}.h5"))
