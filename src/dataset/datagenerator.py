@@ -253,7 +253,6 @@ class ClassificationDataGenerator(keras.utils.Sequence):
         
         elif self.mode == 3:
             # Generate data
-            print(list_IDs_temp)
             for i, ID in enumerate(list_IDs_temp):
 
                 # Read image and mask

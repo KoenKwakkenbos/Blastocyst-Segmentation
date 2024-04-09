@@ -160,7 +160,7 @@ def main():
         model = experiment['model'](input_shape=(800, 800, 1), normalization=args.normalization, print_summary=False)
 
 
-        model.compile(optimizer=Adam(), loss=experiment['loss'], metrics=['accuracy', AUC()])
+        model.compile(optimizer=Adam(), loss=experiment['loss'], metrics=['accuracy', AUC(name='auc')])
 
         # lr scheduler
         lr_callback = LearningRateScheduler(scheduler)
