@@ -14,7 +14,7 @@ from sklearn.metrics import f1_score, recall_score, precision_score, accuracy_sc
 
 from dataset.datagenerator import ClassificationDataGenerator
 # from utils.loss_functions import dice_loss, weighted_bce_dice_loss
-from networks.model import build_resnet50
+from networks.model import build_resnet50, transfer_model
 from utils.postprocessing import postprocessing
 from utils.metrics import specificity_score, save_loss_curve
 from wandb.keras import WandbMetricsLogger
@@ -157,7 +157,8 @@ def main():
                                         mask_path=experiment['img_dir']+'/masks/',
                                         mode=3)
 
-        model = experiment['model'](input_shape=(800, 800, 1), normalization=args.normalization, print_summary=False)
+        # model = experiment['model'](input_shape=(800, 800, 1), normalization=args.normalization, print_summary=False)
+        model = transfer_model(input_shape=(800, 800, 1))
 
 
         model.compile(optimizer=Adam(), loss=experiment['loss'], metrics=['accuracy', AUC(name='auc')])
@@ -172,7 +173,7 @@ def main():
             config = experiment
         )
 
-        X, y = train_datagen.__getitem__(0)
+        X, y = test_datagen.__getitem__(0)
         plt.imshow(X[0].reshape(800, 800), cmap='gray')
         plt.title(f"Label: {y[0]}")
         plt.show()

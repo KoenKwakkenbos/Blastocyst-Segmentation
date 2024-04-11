@@ -257,7 +257,7 @@ class ClassificationDataGenerator(keras.utils.Sequence):
 
                 # Read image and mask
                 img = self.read_image(os.path.join(self.img_path, str(int(ID)) + '.jpg'))
-                mask = self.read_image(os.path.join(self.mask_path, str(int(ID)) + '_mask.tif'))
+                mask = (self.read_image(os.path.join(self.mask_path, str(int(ID)) + '_mask.tif')) / 255).astype(np.uint8)
 
                 y[i] = self.labels.loc[ID, 'outcome']
 
@@ -278,8 +278,8 @@ class ClassificationDataGenerator(keras.utils.Sequence):
 
                     X[i,] = np.expand_dims(img_cropped, -1)
                 else:
-                    img, _ = self.center_image_and_mask(img * mask, mask)
-                    X[i,] = np.expand_dims(img, -1)
+                    img, mask = self.center_image_and_mask(img, mask)
+                    X[i,] = np.expand_dims(img*mask, -1)
             
                 # ELSE!
 
@@ -295,7 +295,7 @@ if __name__ == "__main__":
 
     df_label['label'] = df_label['outcome']
 
-    datagen = ClassificationDataGenerator(list_IDs=df_label.index, img_path=IMG_PATH, shuffle=True, augmentation=False, label_df=df_label, batch_size=8, dim=(800, 800), n_channels=1, mode=3, mask_path=IMG_PATH+'masks/')
+    datagen = ClassificationDataGenerator(list_IDs=df_label.index, img_path=IMG_PATH, shuffle=False, augmentation=False, label_df=df_label, batch_size=8, dim=(800, 800), n_channels=1, mode=3, mask_path=IMG_PATH+'masks/')
 
     X, y = datagen.__getitem__(0)
     

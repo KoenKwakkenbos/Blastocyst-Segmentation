@@ -9,9 +9,9 @@ Functions:
     build_rd_unet(input_height, input_width, input_channels): Builds a Residual Dilated U-Net model.
 """
 
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Conv2DTranspose, concatenate, Input, Lambda, Add, Activation, UpSampling2D, Normalization, BatchNormalization, GlobalMaxPooling2D, Dense, GlobalAveragePooling2D
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Conv2DTranspose, concatenate, Input, Lambda, Add, Activation, UpSampling2D, Normalization, BatchNormalization, GlobalMaxPooling2D, Dense, GlobalAveragePooling2D, RepeatVector
 from tensorflow.keras import Model
-from tensorflow.keras.applications.resnet50 import ResNet50
+from tensorflow.keras.applications.resnet50 import ResNet50, preprocess_input
 from tensorflow.keras.applications.mobilenet import MobileNet
 
 # def build_unet(input_shape=(800, 800, 1), filters=(16, 32, 64, 128, 256, 512), normalization='min_max', print_summary=True):
@@ -516,10 +516,32 @@ def build_resnet50(input_shape=(800, 800, 1), normalization='min_max', print_sum
     return model
 
 
+def transfer_model(input_shape=(800, 800, 1)):
+    base_model = ResNet50(include_top=False, weights='imagenet', pooling=None)
+
+    base_model.trainable = False
+
+    grayscale_input = Input(shape=input_shape)
+
+    x = Conv2D(3,(1,1),padding='same')(grayscale_input) 
+    x = preprocess_input(x)
+
+    x = base_model(x, training=False)
+    x = GlobalAveragePooling2D()(x)
+    x = Dense(1, activation='sigmoid')(x)
+
+    model = Model(inputs=[grayscale_input], outputs=[x])
+
+    return model
+
+
 if __name__ == '__main__':
     print("This module contains functions to build U-Net models.")
     
-    model = build_resnet50(input_shape=(800, 800, 3),)
+    # model = build_resnet50(input_shape=(800, 800, 3),)
 
+    model = transfer_model(input_shape=(800, 800, 1))
+    print(model.summary())
+    
 
 
