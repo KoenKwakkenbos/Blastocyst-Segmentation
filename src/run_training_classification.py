@@ -75,7 +75,7 @@ def append_to_csv(experiment_file, experiment_dict, results_dict):
     # Merge the experiment and results dictionaries into a single dictionary
     combined_dict = {**experiment_dict, **results_dict}
     combined_dict_df = pd.DataFrame(combined_dict, index=[0])
-    combined_dict_df['model'] = combined_dict_df['model'].values[0].__name__
+    # combined_dict_df['model'] = combined_dict_df['model'].values[0].__name__
     if callable(combined_dict_df['loss'].values[0]):
         combined_dict_df['loss'] = combined_dict_df['loss'].values[0].__name__
 
@@ -103,7 +103,6 @@ def main():
     parser.add_argument("--loss", type=str, required=False, choices=["binary_crossentropy", "binary_focal_crossentropy"], help="Loss function to use for training")
     parser.add_argument("--augmentation", action=argparse.BooleanOptionalAction, help="Flag to use data augmentation for training")
     parser.add_argument("--oversampling", action=argparse.BooleanOptionalAction, help="Flag to use data oversampling for training")
-    parser.add_argument("--normalization", type=str, required=False, choices=["min_max", "batchnorm"], help="Normalization method for input data")
     parser.add_argument("--batch_size", type=int, required=False, help="Batch size for training")
     parser.add_argument("--expansion", type=str, required=False, help="Expansion features for training")
 
@@ -113,14 +112,13 @@ def main():
     experiment = process_experiment_file(args.experiment_file)
 
     # Set up additional experiment parameters
-    experiment['model'] = build_resnet50 if args.model == "resnet" else None
+    experiment['model'] = args.model
     experiment['optimizer'] = args.optimizer
     experiment['lr'] = args.lr
     experiment['loss'] = args.loss
     experiment['augmentation'] = args.augmentation
     experiment['oversampling'] = args.oversampling
     experiment['batch_size'] = args.batch_size
-    experiment['normalization'] = args.normalization
     if args.expansion:
         experiment['expansion'] = True
     else:
@@ -169,7 +167,6 @@ def main():
                                         mode=3,
                                         feature_df=args.expansion)
 
-        # model = experiment['model'](input_shape=(800, 800, 1), normalization=args.normalization, print_summary=False)
         model = transfer_model(input_shape=(800, 800, 1), expansion=experiment['expansion'])
 
 
@@ -181,8 +178,9 @@ def main():
 
         # init wandb run
         run = wandb.init(
-            project = "Blastocyst-Prediction",
-            config = experiment
+            project="Blastocyst-Prediction",
+            config=experiment,
+            name=f'Classification_{experiment["ID"]}_fold_{fold+1}_{experiment["model"]}_expansion_{experiment["expansion"]}_oversampling_{experiment["oversampling"]}_lr_{experiment["lr"]}',
         )
 
         results = model.fit(train_datagen, validation_data=test_datagen, epochs=experiment['n_epochs'], callbacks=[lr_callback, WandbMetricsLogger()])
@@ -223,7 +221,7 @@ def main():
 
     # Append results to CSV
     append_to_csv(args.experiment_file, 
-                  {key: value for key, value in experiment.items() if key in ['ID', 'img_dir', 'mask_dir', 'exp_dir', 'n_folds', 'n_epochs', 'model', 'optimizer', 'loss', 'augmentation', 'normalization', 'batch_size']}, 
+                  {key: value for key, value in experiment.items() if key in ['ID', 'img_dir', 'mask_dir', 'exp_dir', 'n_folds', 'n_epochs', 'model', 'optimizer', 'lr', 'loss', 'augmentation', 'oversampling', 'expansion', 'batch_size']},
                   experiment_results)
 
 if __name__ == "__main__":

@@ -12,8 +12,7 @@ Functions:
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Conv2DTranspose, concatenate, Input, Lambda, Add, Activation, UpSampling2D, \
     Normalization, BatchNormalization, GlobalMaxPooling2D, Dense, GlobalAveragePooling2D, RepeatVector, Dropout, Rescaling
 from tensorflow.keras import Model
-from tensorflow.keras.applications.resnet50 import ResNet50, preprocess_input
-from tensorflow.keras.applications.mobilenet import MobileNet
+from tensorflow.keras import applications
 
 # def build_unet(input_shape=(800, 800, 1), filters=(16, 32, 64, 128, 256, 512), normalization='min_max', print_summary=True):
 #     """Builds a U-Net model.
@@ -517,8 +516,13 @@ def build_resnet50(input_shape=(800, 800, 1), normalization='min_max', print_sum
     return model
 
 
-def transfer_model(input_shape=(800, 800, 1), feature_size=18, expansion=False):
-    base_model = ResNet50(include_top=False, weights='imagenet', pooling=None)
+def transfer_model(input_shape=(800, 800, 1), feature_size=18, base_model='resnet50', expansion=False):
+    if base_model == 'resnet50':
+        base_model = applications.resnet.ResNet50(include_top=False, weights='imagenet', pooling=None)
+        preprocess_func = applications.resnet.preprocess_input
+    elif base_model == 'xception':
+        base_model = applications.xception.Xception(include_top=False, weights='imagenet', pooling=None)
+        preprocess_func = applications.xception.preprocess_input
 
     base_model.trainable = False
 
@@ -526,7 +530,7 @@ def transfer_model(input_shape=(800, 800, 1), feature_size=18, expansion=False):
     grayscale_input = Input(shape=input_shape)
     # scale_layer = Rescaling(scale=1 / 127.5, offset=-1)
     x = Conv2D(3,(1,1),padding='same')(grayscale_input) 
-    x = preprocess_input(x)
+    x = preprocess_func(x)
 
     x = base_model(x, training=False)
     x = GlobalAveragePooling2D()(x)
