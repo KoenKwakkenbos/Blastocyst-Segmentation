@@ -524,9 +524,9 @@ def transfer_model(input_shape=(800, 800, 1), feature_size=18, expansion=False):
 
     # Image part
     grayscale_input = Input(shape=input_shape)
-    scale_layer = Rescaling(scale=1 / 127.5, offset=-1)
+    # scale_layer = Rescaling(scale=1 / 127.5, offset=-1)
     x = Conv2D(3,(1,1),padding='same')(grayscale_input) 
-    x = scale_layer(x)
+    x = preprocess_input(x)
 
     x = base_model(x, training=False)
     x = GlobalAveragePooling2D()(x)
