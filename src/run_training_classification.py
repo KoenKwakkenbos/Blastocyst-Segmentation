@@ -97,8 +97,9 @@ def main():
         description='Train a model on a dataset'
     )
     parser.add_argument("--experiment_file", type=str, required=True, help="Path to the .yaml file containing the experiment and dataset information")
-    parser.add_argument("--model", type=str, required=False, choices=["resnet", "densenet"] , help="Model to use for training")
+    parser.add_argument("--model", type=str, required=False, choices=["resnet50", "xception"] , help="Model to use for training")
     parser.add_argument("--optimizer", type=str, required=False, choices=["adam", "sgd"], help="Optimizer to use for training")
+    parser.add_argument("--lr", type=float, required=False, help="Initial learning rate", default=0.001)
     parser.add_argument("--loss", type=str, required=False, choices=["binary_crossentropy", "binary_focal_crossentropy"], help="Loss function to use for training")
     parser.add_argument("--augmentation", action=argparse.BooleanOptionalAction, help="Flag to use data augmentation for training")
     parser.add_argument("--oversampling", action=argparse.BooleanOptionalAction, help="Flag to use data oversampling for training")
@@ -114,6 +115,7 @@ def main():
     # Set up additional experiment parameters
     experiment['model'] = build_resnet50 if args.model == "resnet" else None
     experiment['optimizer'] = args.optimizer
+    experiment['lr'] = args.lr
     experiment['loss'] = args.loss
     experiment['augmentation'] = args.augmentation
     experiment['oversampling'] = args.oversampling
@@ -171,7 +173,7 @@ def main():
         model = transfer_model(input_shape=(800, 800, 1), expansion=experiment['expansion'])
 
 
-        model.compile(optimizer=Adam(learning_rate=0.001), loss=experiment['loss'], metrics=['accuracy', AUC(name='auc')])
+        model.compile(optimizer=Adam(learning_rate=experiment['lr']), loss=experiment['loss'], metrics=['accuracy', AUC(name='auc')])
 
         # lr scheduler
         lr_callback = LearningRateScheduler(scheduler)
