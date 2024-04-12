@@ -168,7 +168,7 @@ def main():
         model = transfer_model(input_shape=(800, 800, 1), expansion=experiment['expansion'])
 
 
-        model.compile(optimizer=Adam(), loss=experiment['loss'], metrics=['accuracy', AUC(name='auc')])
+        model.compile(optimizer=Adam(learning_rate=0.0001), loss=experiment['loss'], metrics=['accuracy', AUC(name='auc')])
 
         # lr scheduler
         lr_callback = LearningRateScheduler(scheduler)
@@ -215,7 +215,6 @@ def main():
     experiment_results['Average_precisionscore'] = np.mean([experiment_results[f"Fold{fold+1}_precisionscore"] for fold in range(experiment['n_folds'])])
     experiment_results['Average_f1score'] = np.mean([experiment_results[f"Fold{fold+1}_f1score"] for fold in range(experiment['n_folds'])])
 
-    print(experiment_results)
 
     # Append results to CSV
     append_to_csv(args.experiment_file, 
