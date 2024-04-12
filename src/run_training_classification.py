@@ -101,6 +101,7 @@ def main():
     parser.add_argument("--optimizer", type=str, required=False, choices=["adam", "sgd"], help="Optimizer to use for training")
     parser.add_argument("--loss", type=str, required=False, choices=["binary_crossentropy", "binary_focal_crossentropy"], help="Loss function to use for training")
     parser.add_argument("--augmentation", action=argparse.BooleanOptionalAction, help="Flag to use data augmentation for training")
+    parser.add_argument("--oversampling", action=argparse.BooleanOptionalAction, help="Flag to use data oversampling for training")
     parser.add_argument("--normalization", type=str, required=False, choices=["min_max", "batchnorm"], help="Normalization method for input data")
     parser.add_argument("--batch_size", type=int, required=False, help="Batch size for training")
     parser.add_argument("--expansion", type=str, required=False, help="Expansion features for training")
@@ -115,6 +116,7 @@ def main():
     experiment['optimizer'] = args.optimizer
     experiment['loss'] = args.loss
     experiment['augmentation'] = args.augmentation
+    experiment['oversampling'] = args.oversampling
     experiment['batch_size'] = args.batch_size
     experiment['normalization'] = args.normalization
     if args.expansion:
@@ -138,7 +140,8 @@ def main():
         train_ids, test_ids = experiment[f"Fold {fold+1}"]["Train set"], experiment[f"Fold {fold+1}"]["Test set"]
 
         # oversampling:
-        #train_ids = train_ids * 5
+        if experiment['oversampling']:
+            train_ids = train_ids * 3
  
         # Initialize datagenerators
         train_datagen = ClassificationDataGenerator(list_IDs=train_ids,
@@ -168,7 +171,7 @@ def main():
         model = transfer_model(input_shape=(800, 800, 1), expansion=experiment['expansion'])
 
 
-        model.compile(optimizer=Adam(learning_rate=0.0001), loss=experiment['loss'], metrics=['accuracy', AUC(name='auc')])
+        model.compile(optimizer=Adam(learning_rate=0.001), loss=experiment['loss'], metrics=['accuracy', AUC(name='auc')])
 
         # lr scheduler
         lr_callback = LearningRateScheduler(scheduler)
