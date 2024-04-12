@@ -10,11 +10,11 @@ import wandb
 from tensorflow.keras.metrics import AUC
 from tensorflow.keras.optimizers import Adam, SGD
 from tensorflow.keras.callbacks import LearningRateScheduler
-from sklearn.metrics import f1_score, recall_score, precision_score, accuracy_score, roc_auc_score
+from sklearn.metrics import f1_score, recall_score, precision_score, accuracy_score, roc_auc_score, f1_score
 
 from dataset.datagenerator import ClassificationDataGenerator
 # from utils.loss_functions import dice_loss, weighted_bce_dice_loss
-from networks.model import build_resnet50, transfer_model, transfer_model_expansion
+from networks.model import build_resnet50, transfer_model
 from utils.postprocessing import postprocessing
 from utils.metrics import specificity_score, save_loss_curve
 from wandb.keras import WandbMetricsLogger
@@ -165,7 +165,7 @@ def main():
                                         feature_df=args.expansion)
 
         # model = experiment['model'](input_shape=(800, 800, 1), normalization=args.normalization, print_summary=False)
-        model = transfer_model_expansion(input_shape=(800, 800, 1))
+        model = transfer_model(input_shape=(800, 800, 1), expansion=experiment['expansion'])
 
 
         model.compile(optimizer=Adam(), loss=experiment['loss'], metrics=['accuracy', AUC(name='auc')])
@@ -180,11 +180,6 @@ def main():
             config = experiment
         )
 
-        # X, y = test_datagen.__getitem__(0)
-        # plt.imshow(X[0].reshape(800, 800), cmap='gray')
-        # plt.title(f"Label: {y[0]}")
-        # plt.show()
-
         results = model.fit(train_datagen, validation_data=test_datagen, epochs=experiment['n_epochs'], callbacks=[lr_callback, WandbMetricsLogger()])
         model.save(os.path.join(experiment_folder, f"model_fold_{fold+1}.h5"))
 
@@ -193,48 +188,39 @@ def main():
 
         # Test the model and append results to csv file
        
-        accuracy_scores = []
-        roc_auc_scores = []
-        # sensitivity_scores = []
-        # specificity_scores = []
-        # precision_scores = []
+        predictions, labels = [], []
 
         for test_images, label in test_datagen:
             preds_test = model.predict(test_images)
 
             preds_test = preds_test > 0.5
+            predictions.extend(preds_test)
+            labels.extend(label)
 
-            # Calculate metrics            
-            accuracy_scores.append(accuracy_score(label, preds_test))
-            roc_auc_scores.append(roc_auc_score(label, preds_test))
-    #         sensitivity_scores.append(recall_score(test_masks.flatten(), processed_preds_test_t.flatten()))
-    #         specificity_scores.append(specificity_score(test_masks.flatten(), processed_preds_test_t.flatten()))
-    #         precision_scores.append(precision_score(test_masks.flatten(), processed_preds_test_t.flatten()))
-
-        experiment_results[f"Fold{fold+1}_accuracyscore"] = np.mean(accuracy_scores)
-        experiment_results[f"Fold{fold+1}_roc_aucscore"] = np.mean(roc_auc_scores)
-    #     experiment_results[f"Fold{fold+1}_jaccardscore"] = np.mean(jaccard_scores)
-    #     experiment_results[f"Fold{fold+1}_sensitivityscore"] = np.mean(sensitivity_scores)
-    #     experiment_results[f"Fold{fold+1}_specificityscore"] = np.mean(specificity_scores)
-    #     experiment_results[f"Fold{fold+1}_precisionscore"] = np.mean(precision_scores)
+        # Calculate metrics            
+        experiment_results[f"Fold{fold+1}_accuracyscore"] = accuracy_score(labels, predictions)
+        experiment_results[f"Fold{fold+1}_roc_aucscore"] = roc_auc_score(labels, predictions)
+        experiment_results[f"Fold{fold+1}_sensitivityscore"] = recall_score(labels, predictions)
+        experiment_results[f"Fold{fold+1}_specificityscore"] = specificity_score(labels, predictions)
+        experiment_results[f"Fold{fold+1}_precisionscore"] = precision_score(labels, predictions)
+        experiment_results[f"Fold{fold+1}_f1score"] = f1_score(labels, predictions)
         
         run.finish()
 
-    # # Calculate averages of the metrics
+    # Calculate averages of the metrics
     experiment_results['Average_accuracyscore'] = np.mean([experiment_results[f"Fold{fold+1}_accuracyscore"] for fold in range(experiment['n_folds'])])
     experiment_results['Average_roc_aucscore'] = np.mean([experiment_results[f"Fold{fold+1}_roc_aucscore"] for fold in range(experiment['n_folds'])])   
-    # experiment_results['Average_dicescore'] = np.mean([experiment_results[f"Fold{fold+1}_dicescore"] for fold in range(experiment['n_folds'])])
-    # experiment_results['Average_jaccardscore'] = np.mean([experiment_results[f"Fold{fold+1}_jaccardscore"] for fold in range(experiment['n_folds'])])
-    # experiment_results['Average_sensitivityscore'] = np.mean([experiment_results[f"Fold{fold+1}_sensitivityscore"] for fold in range(experiment['n_folds'])])
-    # experiment_results['Average_specificityscore'] = np.mean([experiment_results[f"Fold{fold+1}_specificityscore"] for fold in range(experiment['n_folds'])])
-    # experiment_results['Average_precisionscore'] = np.mean([experiment_results[f"Fold{fold+1}_precisionscore"] for fold in range(experiment['n_folds'])])
+    experiment_results['Average_sensitivityscore'] = np.mean([experiment_results[f"Fold{fold+1}_sensitivityscore"] for fold in range(experiment['n_folds'])])
+    experiment_results['Average_specificityscore'] = np.mean([experiment_results[f"Fold{fold+1}_specificityscore"] for fold in range(experiment['n_folds'])])
+    experiment_results['Average_precisionscore'] = np.mean([experiment_results[f"Fold{fold+1}_precisionscore"] for fold in range(experiment['n_folds'])])
+    experiment_results['Average_f1score'] = np.mean([experiment_results[f"Fold{fold+1}_f1score"] for fold in range(experiment['n_folds'])])
+
+    print(experiment_results)
 
     # Append results to CSV
     append_to_csv(args.experiment_file, 
                   {key: value for key, value in experiment.items() if key in ['ID', 'img_dir', 'mask_dir', 'exp_dir', 'n_folds', 'n_epochs', 'model', 'optimizer', 'loss', 'augmentation', 'normalization', 'batch_size']}, 
                   experiment_results)
 
-    
-        
 if __name__ == "__main__":
     main()

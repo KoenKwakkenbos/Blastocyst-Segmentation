@@ -9,7 +9,8 @@ Functions:
     build_rd_unet(input_height, input_width, input_channels): Builds a Residual Dilated U-Net model.
 """
 
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Conv2DTranspose, concatenate, Input, Lambda, Add, Activation, UpSampling2D, Normalization, BatchNormalization, GlobalMaxPooling2D, Dense, GlobalAveragePooling2D, RepeatVector, Dropout
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Conv2DTranspose, concatenate, Input, Lambda, Add, Activation, UpSampling2D, \
+    Normalization, BatchNormalization, GlobalMaxPooling2D, Dense, GlobalAveragePooling2D, RepeatVector, Dropout, Rescaling
 from tensorflow.keras import Model
 from tensorflow.keras.applications.resnet50 import ResNet50, preprocess_input
 from tensorflow.keras.applications.mobilenet import MobileNet
@@ -516,54 +517,39 @@ def build_resnet50(input_shape=(800, 800, 1), normalization='min_max', print_sum
     return model
 
 
-def transfer_model(input_shape=(800, 800, 1)):
-    base_model = ResNet50(include_top=False, weights='imagenet', pooling=None)
-
-    base_model.trainable = False
-
-    grayscale_input = Input(shape=input_shape)
-
-    x = Conv2D(3,(1,1),padding='same')(grayscale_input) 
-    x = preprocess_input(x)
-
-    x = base_model(x, training=False)
-    x = GlobalAveragePooling2D()(x)
-    x = Dropout(0.2)(x)
-    x = Dense(1, activation='sigmoid')(x)
-
-    model = Model(inputs=[grayscale_input], outputs=[x])
-
-    return model
-
-
-def transfer_model_expansion(input_shape=(800, 800, 1), feature_size=18):
+def transfer_model(input_shape=(800, 800, 1), feature_size=18, expansion=False):
     base_model = ResNet50(include_top=False, weights='imagenet', pooling=None)
 
     base_model.trainable = False
 
     # Image part
     grayscale_input = Input(shape=input_shape)
-
+    scale_layer = Rescaling(scale=1 / 127.5, offset=-1)
     x = Conv2D(3,(1,1),padding='same')(grayscale_input) 
-    x = preprocess_input(x)
+    x = scale_layer(x)
 
     x = base_model(x, training=False)
     x = GlobalAveragePooling2D()(x)
 
-    # Feature part
-    feature_input = Input(shape=(feature_size,))
-    y = BatchNormalization()(feature_input)
+    if expansion:
+        # Feature part
+        feature_input = Input(shape=(feature_size,))
+        y = BatchNormalization()(feature_input)
 
-    # Combine
-    x = concatenate([x, y])
-    x = Dense(128, activation='relu')(x)
-    x = Dropout(0.2)(x)
-    x = Dense(64, activation='relu')(x)
-    x = Dropout(0.2)(x)
+        # Combine
+        x = concatenate([x, y])
+        x = Dense(128, activation='relu')(x)
+        x = Dropout(0.2)(x)
+        x = Dense(64, activation='relu')(x)
 
+    # Common part
+    x = Dropout(0.2)(x)
     x = Dense(1, activation='sigmoid')(x)
 
-    model = Model(inputs=[grayscale_input, feature_input], outputs=[x])
+    if expansion:
+        model = Model(inputs=[grayscale_input, feature_input], outputs=[x])
+    else:
+        model = Model(inputs=[grayscale_input], outputs=[x])
 
     return model
 
@@ -572,5 +558,8 @@ if __name__ == '__main__':
     
     # model = build_resnet50(input_shape=(800, 800, 3),)
 
-    model = transfer_model_expansion(input_shape=(800, 800, 1))
+    model = transfer_model(input_shape=(800, 800, 1))
+    print(model.summary())
+
+    model = transfer_model(input_shape=(800, 800, 1), expansion=True)
     print(model.summary())

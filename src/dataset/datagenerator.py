@@ -121,7 +121,7 @@ class ClassificationDataGenerator(keras.utils.Sequence):
             A.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.1, rotate_limit=0, p=0.75, border_mode=cv2.BORDER_CONSTANT),
             A.Rotate(limit=270, p=0.75, border_mode=cv2.BORDER_CONSTANT),
             A.RandomRotate90(p=0.75),
-            # A.RandomBrightnessContrast(brightness_limit=(-0.2, 0.2), contrast_limit=(-0.15, 0.15), p=0.75),
+            A.RandomBrightnessContrast(brightness_limit=(-0.2, 0.2), contrast_limit=(-0.15, 0.15), p=0.75),
             # A.RandomGamma(p=0.5),
             A.GaussNoise(var_limit=(0, 200), p=0.75),
             # A.Defocus(radius=(1, 3), p=0.75)
@@ -319,19 +319,25 @@ if __name__ == "__main__":
 
     df = pd.read_csv(r"C:\Users\koenk\Documents\Master_Thesis\Programming\Blastocyst-Segmentation\features.csv").set_index('Unnamed: 0')
     
-    datagen = ClassificationDataGenerator(list_IDs=df_label.index, img_path=IMG_PATH, shuffle=False, augmentation=False, label_df=df_label, batch_size=8, dim=(800, 800), n_channels=1, mode=3, mask_path=IMG_PATH+'masks/',
+    # datagen = ClassificationDataGenerator(list_IDs=df_label.index, img_path=IMG_PATH, shuffle=False, augmentation=False, label_df=df_label, batch_size=8, dim=(800, 800), n_channels=1, mode=3, mask_path=IMG_PATH+'masks/',
+                                        #   feature_df = r"C:\Users\koenk\Documents\Master_Thesis\Programming\Blastocyst-Segmentation\features.csv")
+
+    datagen = ClassificationDataGenerator(list_IDs=[1, 16, 18, 21, 32, 33, 35, 39], img_path=IMG_PATH, shuffle=False, augmentation=False, label_df=df_label, batch_size=8, dim=(800, 800), n_channels=1, mode=3, mask_path=IMG_PATH+'masks/',
                                           feature_df = r"C:\Users\koenk\Documents\Master_Thesis\Programming\Blastocyst-Segmentation\features.csv")
 
-    [X, features], y = datagen.__getitem__(0)
+    X, y = datagen.__getitem__(0)
     
+    model = tf.keras.models.load_model('C:/users/koenk/Downloads/model_fold_1.h5', compile=False)
+    preds = model.predict(X)
+
     fig, axs = plt.subplots(2,4)
 
     for i in range(len(axs.ravel())):
 
-        axs.ravel()[i].imshow(X[i,], cmap='gray')
-        axs.ravel()[i].set_title(f"Label: {y[i]}")
+        axs.ravel()[i].imshow(X[0][i,], cmap='gray')
+        axs.ravel()[i].set_title(f"Prediction: {preds[i][0]:.2f}, Label: {y[i]}")
         # axs.ravel()[i].imshow(y[i,], cmap='jet', interpolation='nearest', alpha=0.5)
     plt.tight_layout()
     plt.show()
-    
+
     print(features)
