@@ -14,7 +14,7 @@ from sklearn.metrics import f1_score, recall_score, precision_score, accuracy_sc
 
 from dataset.datagenerator import ClassificationDataGenerator
 # from utils.loss_functions import dice_loss, weighted_bce_dice_loss
-from networks.model import build_resnet50, transfer_model
+from networks.model import build_resnet50, transfer_model, transfer_model_expansion
 from utils.postprocessing import postprocessing
 from utils.metrics import specificity_score, save_loss_curve
 from wandb.keras import WandbMetricsLogger
@@ -103,6 +103,7 @@ def main():
     parser.add_argument("--augmentation", action=argparse.BooleanOptionalAction, help="Flag to use data augmentation for training")
     parser.add_argument("--normalization", type=str, required=False, choices=["min_max", "batchnorm"], help="Normalization method for input data")
     parser.add_argument("--batch_size", type=int, required=False, help="Batch size for training")
+    parser.add_argument("--expansion", type=str, required=False, help="Expansion features for training")
 
     args = parser.parse_args()
 
@@ -116,6 +117,10 @@ def main():
     experiment['augmentation'] = args.augmentation
     experiment['batch_size'] = args.batch_size
     experiment['normalization'] = args.normalization
+    if args.expansion:
+        experiment['expansion'] = True
+    else:
+        experiment['expansion'] = False
 
     # Make a folder for the experiment
     experiment_id = get_experiment_id(args.experiment_file)
@@ -124,7 +129,7 @@ def main():
     os.makedirs(experiment_folder, exist_ok=True)
 
     experiment_results = {}
-
+    
     # Get the data for the selected fold
     for fold in range(experiment['n_folds']):
         print(f"[Experiment {experiment_id}] Training model for fold {fold+1}")
@@ -144,7 +149,8 @@ def main():
                                       n_channels=1,
                                       augmentation=['augmentation'],
                                       mask_path=experiment['img_dir']+'/masks/',
-                                      mode=3)
+                                      mode=3,
+                                      feature_df=args.expansion)
         
         test_datagen = ClassificationDataGenerator(list_IDs=test_ids,
                                         img_path=experiment['img_dir'],
@@ -155,10 +161,11 @@ def main():
                                         shuffle=False,
                                         augmentation=False,
                                         mask_path=experiment['img_dir']+'/masks/',
-                                        mode=3)
+                                        mode=3,
+                                        feature_df=args.expansion)
 
         # model = experiment['model'](input_shape=(800, 800, 1), normalization=args.normalization, print_summary=False)
-        model = transfer_model(input_shape=(800, 800, 1))
+        model = transfer_model_expansion(input_shape=(800, 800, 1))
 
 
         model.compile(optimizer=Adam(), loss=experiment['loss'], metrics=['accuracy', AUC(name='auc')])
@@ -173,10 +180,10 @@ def main():
             config = experiment
         )
 
-        X, y = test_datagen.__getitem__(0)
-        plt.imshow(X[0].reshape(800, 800), cmap='gray')
-        plt.title(f"Label: {y[0]}")
-        plt.show()
+        # X, y = test_datagen.__getitem__(0)
+        # plt.imshow(X[0].reshape(800, 800), cmap='gray')
+        # plt.title(f"Label: {y[0]}")
+        # plt.show()
 
         results = model.fit(train_datagen, validation_data=test_datagen, epochs=experiment['n_epochs'], callbacks=[lr_callback, WandbMetricsLogger()])
         model.save(os.path.join(experiment_folder, f"model_fold_{fold+1}.h5"))

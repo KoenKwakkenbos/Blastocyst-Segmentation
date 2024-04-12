@@ -101,7 +101,7 @@ class DataGenerator(keras.utils.Sequence):
 class ClassificationDataGenerator(keras.utils.Sequence):
     'Generates data for Keras'
     def __init__(self, list_IDs, img_path, label_df, batch_size=32, dim=(800,800), n_channels=1,
-                 n_classes=1, shuffle=True, augmentation=True, mask_path=None, mode=1):
+                 n_classes=1, shuffle=True, augmentation=True, mask_path=None, mode=1, feature_df=None):
         'Initialization'
         self.dim = (*dim, n_channels)
         self.batch_size = batch_size
@@ -111,6 +111,10 @@ class ClassificationDataGenerator(keras.utils.Sequence):
         self.n_classes = n_classes
         self.shuffle = shuffle
         self.augmentation = augmentation
+        if feature_df is not None:
+            self.feature_df = pd.read_csv(feature_df).set_index('Unnamed: 0').drop('label_p', axis=1).drop('label_i', axis=1)
+        else:
+            self.feature_df = None
         self.transform = A.Compose([
             A.HorizontalFlip(p=0.75),
             A.VerticalFlip(p=0.75),
@@ -223,7 +227,9 @@ class ClassificationDataGenerator(keras.utils.Sequence):
                     augmented = self.transform(image=X[i,])
                     X[i,] = augmented['image']
 
-            
+            if self.feature_df is not None:
+                features = self.feature_df.loc[np.array(list_IDs_temp)].values
+                return [X, features], y
             return X, y
             
         elif self.mode == 2:
@@ -248,7 +254,9 @@ class ClassificationDataGenerator(keras.utils.Sequence):
 
             plt.imshow(X_mask[0,], cmap='gray')
             plt.show()
-
+            if self.feature_df is not None:
+                features = self.feature_df.loc[np.array(list_IDs_temp)].values
+                return [X, features], y
             return [X, X_mask], y
         
         elif self.mode == 3:
@@ -283,17 +291,17 @@ class ClassificationDataGenerator(keras.utils.Sequence):
             
                 # ELSE!
 
+            if self.feature_df is not None:
+                features = self.feature_df.loc[np.array(list_IDs_temp)].values
+                return [X, features], y
             return X, y
     
 
 if __name__ == "__main__":
     IMG_PATH = r"C:\Users\koenk\Documents\Master_Thesis\Data\Processed_data\Prediction/"
-    df_path = r"C:\Users\koenk\OneDrive\Technical Medicine\Jaar 3\04 Master Thesis\inclusions for blst expansion project_werkversie.xlsx"
+    df_path = r"C:\Users\koenk\Documents\Master_Thesis\Data\Processed_data\Blast_labels.csv"
 
-    df_label = pd.read_excel(df_path).set_index('Embryo_id')
-    df_label = df_label.drop(df_label[df_label['Included']==0].index)
-
-    df_label['label'] = df_label['outcome']
+    df_label = pd.read_csv(df_path).set_index('ID')
 
     datagen = ClassificationDataGenerator(list_IDs=df_label.index, img_path=IMG_PATH, shuffle=False, augmentation=False, label_df=df_label, batch_size=8, dim=(800, 800), n_channels=1, mode=3, mask_path=IMG_PATH+'masks/')
 
@@ -306,8 +314,24 @@ if __name__ == "__main__":
         axs.ravel()[i].imshow(X[i,], cmap='gray')
         axs.ravel()[i].set_title(f"Label: {y[i]}")
         # axs.ravel()[i].imshow(y[i,], cmap='jet', interpolation='nearest', alpha=0.5)
-
     plt.tight_layout()
-    # plt.imshow(X[0,], cmap='gray')
-    # plt.imshow(y[0,], cmap='jet', interpolation='nearest', alpha=0.5)
     plt.show()
+
+    df = pd.read_csv(r"C:\Users\koenk\Documents\Master_Thesis\Programming\Blastocyst-Segmentation\features.csv").set_index('Unnamed: 0')
+    
+    datagen = ClassificationDataGenerator(list_IDs=df_label.index, img_path=IMG_PATH, shuffle=False, augmentation=False, label_df=df_label, batch_size=8, dim=(800, 800), n_channels=1, mode=3, mask_path=IMG_PATH+'masks/',
+                                          feature_df = r"C:\Users\koenk\Documents\Master_Thesis\Programming\Blastocyst-Segmentation\features.csv")
+
+    [X, features], y = datagen.__getitem__(0)
+    
+    fig, axs = plt.subplots(2,4)
+
+    for i in range(len(axs.ravel())):
+
+        axs.ravel()[i].imshow(X[i,], cmap='gray')
+        axs.ravel()[i].set_title(f"Label: {y[i]}")
+        # axs.ravel()[i].imshow(y[i,], cmap='jet', interpolation='nearest', alpha=0.5)
+    plt.tight_layout()
+    plt.show()
+    
+    print(features)
