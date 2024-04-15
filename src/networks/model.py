@@ -10,7 +10,7 @@ Functions:
 """
 
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Conv2DTranspose, concatenate, Input, Lambda, Add, Activation, UpSampling2D, \
-    Normalization, BatchNormalization, GlobalMaxPooling2D, Dense, GlobalAveragePooling2D, RepeatVector, Dropout, Rescaling, Layer, Flatten
+    Normalization, BatchNormalization, GlobalMaxPooling2D, Dense, GlobalAveragePooling2D, RepeatVector, Dropout, Rescaling, Layer, Flatten, Resizing
 from tensorflow.keras import Model
 from tensorflow.keras import applications
 import tensorflow.keras.backend as K
@@ -555,10 +555,12 @@ def transfer_model(input_shape=(800, 800, 1), feature_size=18, base_model='resne
 
     # Image part
     grayscale_input = Input(shape=input_shape)
+    # resize to 224x224
+    x = Resizing(224, 224)(grayscale_input)
     # scale_layer = Rescaling(scale=1 / 127.5, offset=-1)
     # x = Conv2D(3,(1,1),padding='same')(grayscale_input) 
 
-    x = MyPreprocess()(grayscale_input)
+    x = MyPreprocess()(x)
 
     x = preprocess_func(x)
 
