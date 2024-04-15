@@ -588,12 +588,62 @@ def transfer_model(input_shape=(800, 800, 1), feature_size=18, base_model='resne
 
     return model
 
+
+def trainable_model(input_shape=(800, 800, 1), feature_size=18, base_model='resnet50', expansion=False):
+    if base_model == 'resnet50':
+        base_model = applications.resnet.ResNet50(include_top=False, weights=None, pooling=None)
+        preprocess_func = applications.resnet.preprocess_input
+        pooling = GlobalAveragePooling2D()
+    elif base_model == 'xception':
+        base_model = applications.xception.Xception(include_top=False, weights=None, pooling=None)
+        preprocess_func = applications.xception.preprocess_input
+        pooling = GlobalAveragePooling2D()
+    elif base_model == 'vgg16':
+        base_model = applications.vgg16.VGG16(include_top=False, weights=None, pooling=None)
+        preprocess_func = applications.vgg16.preprocess_input
+        pooling = Flatten()
+
+    base_model.trainable = True
+
+    # Image part
+    grayscale_input = Input(shape=input_shape)
+    # resize to 224x224
+    x = Resizing(224, 224)(grayscale_input)
+
+    x = MyPreprocess()(x)
+    # scale_layer = Rescaling(scale=1 / 127.5, offset=-1)
+    # x = Conv2D(3,(1,1),padding='same')(grayscale_input) 
+ 
+    x = base_model(x, training=True)
+    x = pooling(x)
+
+    if expansion:
+        # Feature part
+        feature_input = Input(shape=(feature_size,))
+        y = BatchNormalization()(feature_input)
+
+        # Combine
+        x = concatenate([x, y])
+        x = Dense(64, activation='relu')(x)
+
+    # Common part
+    x = Dropout(0.2)(x)
+    x = Dense(32, activation='relu')(x)
+    x = Dense(1, activation='sigmoid')(x)
+
+    if expansion:
+        model = Model(inputs=[grayscale_input, feature_input], outputs=[x])
+    else:
+        model = Model(inputs=[grayscale_input], outputs=[x])
+
+    return model
+
 if __name__ == '__main__':
     print("This module contains functions to build U-Net models.")
     
     # model = build_resnet50(input_shape=(800, 800, 3),)
 
-    model = transfer_model(base_model='vgg16', input_shape=(800, 800, 1), finetune=True)
+    model = trainable_model(base_model='vgg16', input_shape=(800, 800, 1))
     print(model.summary())
 
     # model = transfer_model(input_shape=(800, 800, 1), expansion=True)

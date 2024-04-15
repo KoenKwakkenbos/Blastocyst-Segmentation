@@ -14,7 +14,7 @@ from sklearn.metrics import f1_score, recall_score, precision_score, accuracy_sc
 
 from dataset.datagenerator import ClassificationDataGenerator
 # from utils.loss_functions import dice_loss, weighted_bce_dice_loss
-from networks.model import build_resnet50, transfer_model
+from networks.model import build_resnet50, transfer_model, trainable_model
 from utils.postprocessing import postprocessing
 from utils.metrics import specificity_score, save_loss_curve
 from wandb.keras import WandbMetricsLogger
@@ -167,14 +167,13 @@ def main():
                                         mode=3,
                                         feature_df=args.expansion)
 
-        model = transfer_model(input_shape=(800, 800, 1), expansion=experiment['expansion'])
-
+        # model = transfer_model(input_shape=(800, 800, 1), expansion=experiment['expansion'], base_model=experiment['model'])
+        model = trainable_model(input_shape=(800, 800, 1), expansion=experiment['expansion'], base_model=experiment['model'])
 
         model.compile(optimizer=Adam(learning_rate=experiment['lr']), loss=experiment['loss'], metrics=['accuracy', AUC(name='auc')])
 
         # lr scheduler
         lr_callback = LearningRateScheduler(scheduler)
-
 
         # init wandb run
         run = wandb.init(
