@@ -10,9 +10,25 @@ Functions:
 """
 
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Conv2DTranspose, concatenate, Input, Lambda, Add, Activation, UpSampling2D, \
-    Normalization, BatchNormalization, GlobalMaxPooling2D, Dense, GlobalAveragePooling2D, RepeatVector, Dropout, Rescaling
+    Normalization, BatchNormalization, GlobalMaxPooling2D, Dense, GlobalAveragePooling2D, RepeatVector, Dropout, Rescaling, Layer, Flatten
 from tensorflow.keras import Model
 from tensorflow.keras import applications
+import tensorflow.keras.backend as K
+
+class MyPreprocess( Layer ) :
+    # source: https://stackoverflow.com/questions/52503396/copy-gray-scale-image-content-to-3-channels
+    def call( self, inputs ) :
+        # expand your input from gray scale to rgb
+        # if your inputs.shape = (None,None,1)
+        fake_rgb = K.concatenate( [inputs for i in range(3)], axis=-1 ) 
+        fake_rgb = K.cast( fake_rgb, 'float32' )
+        # else use K.stack( [inputs for i in range(3)], axis=-1 ) 
+        # preprocess for uint8 image
+        # x = preprocess_input( fake_rgb )
+        return fake_rgb
+    def compute_output_shape( self, input_shape ) :
+        return input_shape[:3] + (3,)
+
 
 # def build_unet(input_shape=(800, 800, 1), filters=(16, 32, 64, 128, 256, 512), normalization='min_max', print_summary=True):
 #     """Builds a U-Net model.
@@ -516,24 +532,38 @@ def build_resnet50(input_shape=(800, 800, 1), normalization='min_max', print_sum
     return model
 
 
-def transfer_model(input_shape=(800, 800, 1), feature_size=18, base_model='resnet50', expansion=False):
+def transfer_model(input_shape=(800, 800, 1), feature_size=18, base_model='resnet50', expansion=False, finetune=True):
     if base_model == 'resnet50':
         base_model = applications.resnet.ResNet50(include_top=False, weights='imagenet', pooling=None)
         preprocess_func = applications.resnet.preprocess_input
+        pooling = GlobalAveragePooling2D()
     elif base_model == 'xception':
         base_model = applications.xception.Xception(include_top=False, weights='imagenet', pooling=None)
         preprocess_func = applications.xception.preprocess_input
+        pooling = GlobalAveragePooling2D()
+    elif base_model == 'vgg16':
+        base_model = applications.vgg16.VGG16(include_top=False, weights='imagenet', pooling=None)
+        preprocess_func = applications.vgg16.preprocess_input
+        pooling = Flatten()
 
     base_model.trainable = False
+
+    if finetune:
+        base_model.trainable = True
+        for layer in base_model.layers[:-4]:
+            layer.trainable = False
 
     # Image part
     grayscale_input = Input(shape=input_shape)
     # scale_layer = Rescaling(scale=1 / 127.5, offset=-1)
-    x = Conv2D(3,(1,1),padding='same')(grayscale_input) 
+    # x = Conv2D(3,(1,1),padding='same')(grayscale_input) 
+
+    x = MyPreprocess()(grayscale_input)
+
     x = preprocess_func(x)
 
     x = base_model(x, training=False)
-    x = GlobalAveragePooling2D()(x)
+    x = pooling(x)
 
     if expansion:
         # Feature part
@@ -542,12 +572,11 @@ def transfer_model(input_shape=(800, 800, 1), feature_size=18, base_model='resne
 
         # Combine
         x = concatenate([x, y])
-        x = Dense(128, activation='relu')(x)
-        x = Dropout(0.2)(x)
         x = Dense(64, activation='relu')(x)
 
     # Common part
     x = Dropout(0.2)(x)
+    x = Dense(32, activation='relu')(x)
     x = Dense(1, activation='sigmoid')(x)
 
     if expansion:
@@ -562,8 +591,8 @@ if __name__ == '__main__':
     
     # model = build_resnet50(input_shape=(800, 800, 3),)
 
-    model = transfer_model(input_shape=(800, 800, 1))
+    model = transfer_model(base_model='vgg16', input_shape=(800, 800, 1), finetune=True)
     print(model.summary())
 
-    model = transfer_model(input_shape=(800, 800, 1), expansion=True)
-    print(model.summary())
+    # model = transfer_model(input_shape=(800, 800, 1), expansion=True)
+    # print(model.summary())

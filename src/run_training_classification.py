@@ -97,7 +97,7 @@ def main():
         description='Train a model on a dataset'
     )
     parser.add_argument("--experiment_file", type=str, required=True, help="Path to the .yaml file containing the experiment and dataset information")
-    parser.add_argument("--model", type=str, required=False, choices=["resnet50", "xception"] , help="Model to use for training")
+    parser.add_argument("--model", type=str, required=False, choices=["resnet50", "xception", "vgg16"] , help="Model to use for training")
     parser.add_argument("--optimizer", type=str, required=False, choices=["adam", "sgd"], help="Optimizer to use for training")
     parser.add_argument("--lr", type=float, required=False, help="Initial learning rate", default=0.001)
     parser.add_argument("--loss", type=str, required=False, choices=["binary_crossentropy", "binary_focal_crossentropy"], help="Loss function to use for training")
