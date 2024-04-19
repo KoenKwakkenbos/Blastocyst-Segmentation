@@ -10,7 +10,7 @@ Functions:
 """
 
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Conv2DTranspose, concatenate, Input, Lambda, Add, Activation, UpSampling2D, \
-    Normalization, BatchNormalization, GlobalMaxPooling2D, Dense, GlobalAveragePooling2D, RepeatVector, Dropout, Rescaling, Layer, Flatten, Resizing
+    Normalization, BatchNormalization, GlobalMaxPooling2D, Dense, GlobalAveragePooling2D, RepeatVector, Dropout, Rescaling, Layer, Flatten, Resizing, AveragePooling2D, Multiply
 from tensorflow.keras import Model
 from tensorflow.keras import applications
 import tensorflow.keras.backend as K
@@ -602,6 +602,10 @@ def trainable_model(input_shape=(800, 800, 1), feature_size=18, base_model='resn
         base_model = applications.vgg16.VGG16(include_top=False, weights=None, pooling=None)
         preprocess_func = applications.vgg16.preprocess_input
         pooling = Flatten()
+    elif base_model == 'densenet121':
+        base_model = applications.densenet.DenseNet121(include_top=False, weights=None, pooling=None)
+        preprocess_func = applications.densenet.preprocess_input
+        pooling = GlobalAveragePooling2D()
 
     base_model.trainable = True
 
@@ -627,8 +631,9 @@ def trainable_model(input_shape=(800, 800, 1), feature_size=18, base_model='resn
         x = Dense(64, activation='relu')(x)
 
     # Common part
-    x = Dropout(0.2)(x)
-    x = Dense(32, activation='relu')(x)
+    x = Dropout(0.3)(x)
+    x = Dense(256)(x)
+    x = Dropout(0.3)(x)
     x = Dense(1, activation='sigmoid')(x)
 
     if expansion:
@@ -638,13 +643,134 @@ def trainable_model(input_shape=(800, 800, 1), feature_size=18, base_model='resn
 
     return model
 
+
+def model_rad(input_shape=(800, 800, 1)):
+    grayscale_input = Input(shape=input_shape)
+    # resize to 224x224
+    x = Resizing(224, 224)(grayscale_input)
+
+    x = Conv2D(32, (7, 7), padding='same', use_bias=False)(x)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    x = MaxPooling2D((2, 2))(x)
+
+    # First C3 block
+    c3_1 = AveragePooling2D((1, 1))(x)
+    c3_1 = Conv2D(1, 2, strides=(4, 4))(c3_1)
+    c3_1 = Activation('relu')(c3_1)
+    c3_1 = Conv2DTranspose(1, 2, strides=(4, 4))(c3_1)
+    c3_1 = Activation('sigmoid')(c3_1)
+    c3_1 = Multiply()([x, c3_1])
+    c3_1 = Conv2D(64, 7, padding='same', use_bias=False)(c3_1)
+    c3_1 = BatchNormalization()(c3_1)
+    c3_1 = Activation('relu')(c3_1)
+    c3_1 = MaxPooling2D((2, 2))(c3_1)
+
+    c3_2 = AveragePooling2D((1, 1))(c3_1)
+    c3_2 = Conv2D(1, 2, strides=(4, 4))(c3_2)
+    c3_2 = Activation('relu')(c3_2)
+    c3_2 = Conv2DTranspose(1, 2, strides=(4, 4))(c3_2)
+    c3_2 = Activation('sigmoid')(c3_2)
+    c3_2 = Multiply()([c3_1, c3_2])
+    c3_2 = Conv2D(128, 7, padding='same', use_bias=False)(c3_2)
+    c3_2 = BatchNormalization()(c3_2)
+    c3_2 = Activation('relu')(c3_2)
+    c3_2 = MaxPooling2D((2, 2))(c3_2)
+
+    c3_3 = AveragePooling2D((1, 1))(c3_2)
+    c3_3 = Conv2D(1, 2, strides=(4, 4))(c3_3)
+    c3_3 = Activation('relu')(c3_3)
+    c3_3 = Conv2DTranspose(1, 2, strides=(4, 4))(c3_3)
+    c3_3 = Activation('sigmoid')(c3_3)
+    c3_3 = Multiply()([c3_2, c3_3])
+    c3_3 = Conv2D(256, 7, padding='same', use_bias=False)(c3_3)
+    c3_3 = BatchNormalization()(c3_3)
+    c3_3 = Activation('relu')(c3_3)
+    c3_3 = MaxPooling2D((2, 2))(c3_3)
+
+    # c3_4 = AveragePooling2D((1, 1))(c3_3)
+    # c3_4 = Conv2D(1, 2, strides=(4, 4))(c3_4)
+    # c3_4 = Activation('relu')(c3_4)
+    # c3_4 = Conv2DTranspose(1, 2, strides=(4, 4))(c3_4)
+    # c3_4 = Activation('sigmoid')(c3_4)
+    # c3_4 = Multiply()([c3_3, c3_4])
+    # c3_4 = Conv2D(512, 3, padding='same', use_bias=False)(c3_4)
+    # c3_4 = BatchNormalization()(c3_4)
+    # c3_4 = Activation('relu')(c3_4)
+    
+    dense = GlobalAveragePooling2D()(c3_3)
+    dense = Dense(128, activation='relu')(dense)
+    dense = Dense(128, activation='relu')(dense)
+    dense = Dense(1, activation='sigmoid')(dense)
+
+    model = Model(inputs=[grayscale_input], outputs=[dense])
+
+    return model
+
+
+# def small_cnn(input_shape=(800, 800, 1)):
+#     grayscale_input = Input(shape=input_shape)
+#     # resize to 224x224
+#     x = Resizing(224, 224)(grayscale_input)
+#     x = Conv2D(32, (3, 3))(x)
+#     x = MaxPooling2D()(x)
+#     x = Conv2D(32, (3, 3))(x)
+#     x = MaxPooling2D()(x)
+#     x = Conv2D(64, (3, 3))(x)
+#     x = MaxPooling2D(2)(x)
+#     x = Flatten()(x)
+#     x = Dropout(0.5)(x)
+#     x = Dense(1, activation='sigmoid')(x)
+
+#     model = Model(inputs=[grayscale_input], outputs=[x])
+#     return model
+
+def small_cnn(input_shape=(800, 800, 1), feature_size=17, expansion=True):
+    grayscale_input = Input(shape=input_shape)
+    # resize to 224x224
+    x = Resizing(224, 224)(grayscale_input)
+    x = Conv2D(32, (3, 3))(x)
+    x = MaxPooling2D()(x)
+    x = Conv2D(32, (3, 3))(x)
+    x = MaxPooling2D()(x)
+    x = Conv2D(64, (3, 3))(x)
+    x = MaxPooling2D(2)(x)
+    x = Flatten()(x)
+    x = Dense(32, activation='relu')(x)
+    #x = Dropout(0.5)(x)
+
+    if expansion:
+        # Feature part
+        feature_input = Input(shape=(feature_size,))
+        # y = BatchNormalization()(feature_input)
+        
+        y = Dense(32, activation='relu')(feature_input)
+
+        # Combine
+        x = concatenate([x, y])
+        x = Dense(64, activation='relu')(x)
+        x = Dropout(0.3)(x)
+
+    x = Dense(1, activation='sigmoid')(x)
+
+    if expansion:
+        model = Model(inputs=[grayscale_input, feature_input], outputs=[x])
+    else:
+        model = Model(inputs=[grayscale_input], outputs=[x])
+
+    return model
+
+
 if __name__ == '__main__':
     print("This module contains functions to build U-Net models.")
     
     # model = build_resnet50(input_shape=(800, 800, 3),)
 
-    model = trainable_model(base_model='vgg16', input_shape=(800, 800, 1))
-    print(model.summary())
+    # model = trainable_model(base_model='vgg16', input_shape=(800, 800, 1))
+    # print(model.summary())
 
     # model = transfer_model(input_shape=(800, 800, 1), expansion=True)
     # print(model.summary())
+
+    model = trainable_model(base_model='densenet121', expansion=False, feature_size=18)
+    print(model.summary())

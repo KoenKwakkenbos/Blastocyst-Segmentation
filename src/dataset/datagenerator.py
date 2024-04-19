@@ -113,17 +113,19 @@ class ClassificationDataGenerator(keras.utils.Sequence):
         self.augmentation = augmentation
         if feature_df is not None:
             self.feature_df = pd.read_csv(feature_df).set_index('Unnamed: 0').drop('label_p', axis=1).drop('label_i', axis=1)
+            self.feature_df = self.feature_df[self.feature_df.columns[:17]]
+            # TODO remove this
         else:
             self.feature_df = None
         self.transform = A.Compose([
             A.HorizontalFlip(p=0.75),
             A.VerticalFlip(p=0.75),
             A.Rotate(limit=270, p=0.75, border_mode=cv2.BORDER_CONSTANT),
-            # A.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.1, rotate_limit=0, p=0.75, border_mode=cv2.BORDER_CONSTANT),
+            A.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.0, rotate_limit=0, p=0.75, border_mode=cv2.BORDER_CONSTANT),
             # A.RandomRotate90(p=0.75),
-            A.RandomBrightnessContrast(brightness_limit=(-0.2, 0.2), contrast_limit=(-0.15, 0.15), p=0.75),
+            A.RandomBrightnessContrast(brightness_limit=(-0.1, 0.1), contrast_limit=(-0.1, 0.1), p=0.75),
             # A.RandomGamma(p=0.5),
-            A.GaussNoise(var_limit=(0, 200), p=0.75),
+            # A.GaussNoise(var_limit=(0, 200), p=0.75),
             # A.Defocus(radius=(1, 3), p=0.75)
         ])
         self.mode = mode

@@ -14,7 +14,7 @@ from sklearn.metrics import f1_score, recall_score, precision_score, accuracy_sc
 
 from dataset.datagenerator import ClassificationDataGenerator
 # from utils.loss_functions import dice_loss, weighted_bce_dice_loss
-from networks.model import build_resnet50, transfer_model, trainable_model
+from networks.model import build_resnet50, transfer_model, trainable_model, model_rad, small_cnn
 from utils.postprocessing import postprocessing
 from utils.metrics import specificity_score, save_loss_curve
 from wandb.keras import WandbMetricsLogger
@@ -97,7 +97,7 @@ def main():
         description='Train a model on a dataset'
     )
     parser.add_argument("--experiment_file", type=str, required=True, help="Path to the .yaml file containing the experiment and dataset information")
-    parser.add_argument("--model", type=str, required=False, choices=["resnet50", "xception", "vgg16"] , help="Model to use for training")
+    parser.add_argument("--model", type=str, required=False, choices=["resnet50", "xception", "vgg16", "densenet121"] , help="Model to use for training")
     parser.add_argument("--optimizer", type=str, required=False, choices=["adam", "sgd"], help="Optimizer to use for training")
     parser.add_argument("--lr", type=float, required=False, help="Initial learning rate", default=0.001)
     parser.add_argument("--loss", type=str, required=False, choices=["binary_crossentropy", "binary_focal_crossentropy"], help="Loss function to use for training")
@@ -141,7 +141,7 @@ def main():
 
         # oversampling:
         if experiment['oversampling']:
-            train_ids = train_ids * 3
+            train_ids = train_ids * 5
  
         # Initialize datagenerators
         train_datagen = ClassificationDataGenerator(list_IDs=train_ids,
@@ -169,6 +169,18 @@ def main():
 
         # model = transfer_model(input_shape=(800, 800, 1), expansion=experiment['expansion'], base_model=experiment['model'])
         model = trainable_model(input_shape=(800, 800, 1), expansion=experiment['expansion'], base_model=experiment['model'])
+        # model = model_rad(input_shape=(800, 800, 1))
+
+        #X, y = train_datagen.__getitem__(0)
+        #plt.imshow(X[0][0].reshape(800, 800), cmap='gray')
+        #print(X[1][0])
+        #plt.show()
+        #plt.imshow(X[1].reshape(800, 800), cmap='gray')
+        #plt.show()
+        #plt.imshow(X[2].reshape(800, 800), cmap='gray')
+        #plt.show()
+
+        # model = small_cnn(input_shape=(800, 800, 1))
 
         model.compile(optimizer=Adam(learning_rate=experiment['lr']), loss=experiment['loss'], metrics=['accuracy', AUC(name='auc')])
 

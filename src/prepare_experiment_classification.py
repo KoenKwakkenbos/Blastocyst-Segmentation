@@ -42,7 +42,7 @@ def main():
     labels = label_file['outcome'].values
 
     # Split the IDs into 4 folds
-    folds = StratifiedKFold(n_splits=output['n_folds'], shuffle=True, random_state=0).split(ids, labels)
+    folds = StratifiedKFold(n_splits=output['n_folds']).split(ids, labels)
 
     # Loop over the folds
     for i, (train_index, test_index) in enumerate(folds):
