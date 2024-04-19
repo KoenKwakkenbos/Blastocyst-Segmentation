@@ -86,10 +86,10 @@ def append_to_csv(experiment_file, experiment_dict, results_dict):
     df.to_csv(file_path, index=False)
 
 def scheduler(epoch, lr):
-    if epoch < 50:
-        return lr
+    if epoch % 50 == 0:
+        return lr * 0.1
     else:
-        return lr * np.exp(-0.025)
+        return lr 
 
 
 def main(): 
