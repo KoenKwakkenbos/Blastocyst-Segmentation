@@ -532,7 +532,7 @@ def build_resnet50(input_shape=(800, 800, 1), normalization='min_max', print_sum
     return model
 
 
-def transfer_model(input_shape=(800, 800, 1), feature_size=18, base_model='resnet50', expansion=False, finetune=True):
+def transfer_model(input_shape=(800, 800, 1), feature_size=18, base_model='resnet50', expansion=False, finetune=False):
     if base_model == 'resnet50':
         base_model = applications.resnet.ResNet50(include_top=False, weights='imagenet', pooling=None)
         preprocess_func = applications.resnet.preprocess_input
@@ -545,6 +545,10 @@ def transfer_model(input_shape=(800, 800, 1), feature_size=18, base_model='resne
         base_model = applications.vgg16.VGG16(include_top=False, weights='imagenet', pooling=None)
         preprocess_func = applications.vgg16.preprocess_input
         pooling = Flatten()
+    elif base_model == 'densenet121':
+        base_model = applications.densenet.DenseNet121(include_top=False, weights=None, pooling=None)
+        preprocess_func = applications.densenet.preprocess_input
+        pooling = GlobalAveragePooling2D()
 
     base_model.trainable = False
 
@@ -578,7 +582,7 @@ def transfer_model(input_shape=(800, 800, 1), feature_size=18, base_model='resne
 
     # Common part
     x = Dropout(0.2)(x)
-    x = Dense(32, activation='relu')(x)
+    # x = Dense(32, activation='relu')(x)
     x = Dense(1, activation='sigmoid')(x)
 
     if expansion:

@@ -126,7 +126,7 @@ class ClassificationDataGenerator(keras.utils.Sequence):
             A.RandomBrightnessContrast(brightness_limit=(-0.1, 0.1), contrast_limit=(-0.1, 0.1), p=0.75),
             # A.RandomGamma(p=0.5),
             # A.GaussNoise(var_limit=(0, 200), p=0.75),
-            # A.Defocus(radius=(1, 3), p=0.75)
+            A.Defocus(radius=(1, 3), p=0.75)
         ])
         self.mode = mode
         self.mask_path = mask_path
@@ -300,12 +300,12 @@ class ClassificationDataGenerator(keras.utils.Sequence):
                     # img_cropped = cv2.resize(img_cropped, (self.dim[0], self.dim[1]))
                 
                     # min_max norm
-                    img = cv2.normalize(augmented['image'], None, 0, 1, cv2.NORM_MINMAX, cv2.CV_32F, mask=augmented['mask'])
+                    # img = cv2.normalize(augmented['image'], None, 0, 1, cv2.NORM_MINMAX, cv2.CV_32F, mask=augmented['mask'])
 
                     X[i,] = np.expand_dims(img, -1)
                 else:
                     img, mask = self.center_image_and_mask(img, mask)
-                    img = cv2.normalize(img*mask, None, 0, 1, cv2.NORM_MINMAX, cv2.CV_32F, mask=mask)
+                    # img = cv2.normalize(img*mask, None, 0, 1, cv2.NORM_MINMAX, cv2.CV_32F, mask=mask)
                     X[i,] = np.expand_dims(img, -1)
             
                 # ELSE!
