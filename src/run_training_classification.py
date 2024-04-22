@@ -86,7 +86,7 @@ def append_to_csv(experiment_file, experiment_dict, results_dict):
     df.to_csv(file_path, index=False)
 
 def scheduler(epoch, lr):
-    if epoch % 50 == 0:
+    if epoch % 100 == 0:
         return lr * 0.1
     else:
         return lr 
@@ -171,11 +171,11 @@ def main():
         # model = trainable_model(input_shape=(800, 800, 1), expansion=experiment['expansion'], base_model=experiment['model'])
         # model = model_rad(input_shape=(800, 800, 1))
 
-        #X, y = train_datagen.__getitem__(0)
-        #plt.imshow(X[0][0].reshape(800, 800), cmap='gray')
-        #print(X[1][0])
-        #plt.show()
-        #plt.imshow(X[1].reshape(800, 800), cmap='gray')
+        X, y = train_datagen.__getitem__(0)
+        plt.imshow(X[0].reshape(800, 800), cmap='gray')
+        # print(X[1][0])
+        plt.show()
+        # plt.imshow(X[1].reshape(800, 800), cmap='gray')
         #plt.show()
         #plt.imshow(X[2].reshape(800, 800), cmap='gray')
         #plt.show()
