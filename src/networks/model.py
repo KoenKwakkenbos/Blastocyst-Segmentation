@@ -546,7 +546,7 @@ def transfer_model(input_shape=(800, 800, 1), feature_size=18, base_model='resne
         preprocess_func = applications.vgg16.preprocess_input
         pooling = Flatten()
     elif base_model == 'densenet121':
-        base_model = applications.densenet.DenseNet121(include_top=False, weights=None, pooling=None)
+        base_model = applications.densenet.DenseNet121(include_top=False, weights='imagenet', pooling=None)
         preprocess_func = applications.densenet.preprocess_input
         pooling = GlobalAveragePooling2D()
 
@@ -776,5 +776,5 @@ if __name__ == '__main__':
     # model = transfer_model(input_shape=(800, 800, 1), expansion=True)
     # print(model.summary())
 
-    model = trainable_model(base_model='densenet121', expansion=False, feature_size=18)
+    model = transfer_model(base_model='densenet121', expansion=False, feature_size=18)
     print(model.summary())

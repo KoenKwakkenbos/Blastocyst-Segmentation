@@ -300,6 +300,7 @@ class ClassificationDataGenerator(keras.utils.Sequence):
                     # img_cropped = cv2.resize(img_cropped, (self.dim[0], self.dim[1]))
                 
                     # min_max norm
+                    img = augmented['image']
                     # img = cv2.normalize(augmented['image'], None, 0, 1, cv2.NORM_MINMAX, cv2.CV_32F, mask=augmented['mask'])
 
                     X[i,] = np.expand_dims(img, -1)
