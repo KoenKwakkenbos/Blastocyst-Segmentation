@@ -9,7 +9,7 @@ import wandb
 
 from tensorflow.keras.metrics import AUC
 from tensorflow.keras.optimizers import Adam, SGD
-from tensorflow.keras.callbacks import LearningRateScheduler, EarlyStopping
+from tensorflow.keras.callbacks import LearningRateScheduler, EarlyStopping, ReduceLROnPlateau
 from sklearn.metrics import f1_score, recall_score, precision_score, accuracy_score, roc_auc_score, f1_score
 
 from dataset.datagenerator import ClassificationDataGenerator
@@ -85,11 +85,11 @@ def append_to_csv(experiment_file, experiment_dict, results_dict):
     # Write the DataFrame back to the CSV file
     df.to_csv(file_path, index=False)
 
-def scheduler(epoch, lr):
-    if epoch % 100 == 0:
-        return lr * 0.1
-    else:
-        return lr 
+# def scheduler(epoch, lr):
+#     if (epoch+1) % 20 == 0:
+#         return lr * 0.1
+#     else:
+#         return lr 
 
 
 def main(): 
@@ -167,7 +167,7 @@ def main():
                                         mode=3,
                                         feature_df=args.expansion)
 
-        model = transfer_model(input_shape=(800, 800, 1), expansion=experiment['expansion'], base_model=experiment['model'])
+        model = transfer_model(input_shape=(800, 800, 1), expansion=experiment['expansion'], base_model=experiment['model'], finetune=False)
         # model = trainable_model(input_shape=(800, 800, 1), expansion=experiment['expansion'], base_model=experiment['model'])
         # model = model_rad(input_shape=(800, 800, 1))
 
@@ -182,13 +182,15 @@ def main():
 
         # model = small_cnn(input_shape=(800, 800, 1))
 
-        model.compile(optimizer=Adam(learning_rate=experiment['lr']), loss=experiment['loss'], metrics=['accuracy', AUC(name='auc')])
+        model.compile(optimizer=SGD(learning_rate=experiment['lr']), loss=experiment['loss'], metrics=['accuracy', AUC(name='auc')])
 
         # lr scheduler
-        lr_callback = LearningRateScheduler(scheduler)
+        # lr_callback = LearningRateScheduler(scheduler)
 
         # early stopping
         early_stopping = EarlyStopping(monitor='val_loss', patience=30, restore_best_weights=True)
+        reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.1,
+                              patience=10, min_lr=0.0001)
 
         # init wandb run
         run = wandb.init(
@@ -197,7 +199,7 @@ def main():
             name=f'Classification_{experiment["ID"]}_fold_{fold+1}_{experiment["model"]}_expansion_{experiment["expansion"]}_oversampling_{experiment["oversampling"]}_lr_{experiment["lr"]}',
         )
 
-        results = model.fit(train_datagen, validation_data=test_datagen, epochs=experiment['n_epochs'], callbacks=[lr_callback, early_stopping, WandbMetricsLogger()])
+        results = model.fit(train_datagen, validation_data=test_datagen, epochs=experiment['n_epochs'], callbacks=[reduce_lr, early_stopping, WandbMetricsLogger()])
         model.save(os.path.join(experiment_folder, f"model_fold_{fold+1}.h5"))
 
         # # Save loss curve

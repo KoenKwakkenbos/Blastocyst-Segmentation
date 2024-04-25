@@ -26,6 +26,7 @@ class MyPreprocess( Layer ) :
         # preprocess for uint8 image
         # x = preprocess_input( fake_rgb )
         return fake_rgb
+    
     def compute_output_shape( self, input_shape ) :
         return input_shape[:3] + (3,)
 
@@ -566,7 +567,9 @@ def transfer_model(input_shape=(800, 800, 1), feature_size=18, base_model='resne
 
     x = MyPreprocess()(x)
 
-    x = preprocess_func(x)
+    # x = preprocess_func(x)
+
+    x = BatchNormalization()(x)
 
     x = base_model(x, training=False)
     x = pooling(x)
@@ -590,24 +593,26 @@ def transfer_model(input_shape=(800, 800, 1), feature_size=18, base_model='resne
     else:
         model = Model(inputs=[grayscale_input], outputs=[x])
 
+    print(model.summary())
+
     return model
 
 
 def trainable_model(input_shape=(800, 800, 1), feature_size=18, base_model='resnet50', expansion=False):
     if base_model == 'resnet50':
-        base_model = applications.resnet.ResNet50(include_top=False, weights=None, pooling=None)
+        base_model = applications.resnet.ResNet50(include_top=False, weights='imagenet', pooling=None)
         preprocess_func = applications.resnet.preprocess_input
         pooling = GlobalAveragePooling2D()
     elif base_model == 'xception':
-        base_model = applications.xception.Xception(include_top=False, weights=None, pooling=None)
+        base_model = applications.xception.Xception(include_top=False, weights='imagenet', pooling=None)
         preprocess_func = applications.xception.preprocess_input
         pooling = GlobalAveragePooling2D()
     elif base_model == 'vgg16':
-        base_model = applications.vgg16.VGG16(include_top=False, weights=None, pooling=None)
+        base_model = applications.vgg16.VGG16(include_top=False, weights='imagenet', pooling=None)
         preprocess_func = applications.vgg16.preprocess_input
         pooling = Flatten()
     elif base_model == 'densenet121':
-        base_model = applications.densenet.DenseNet121(include_top=False, weights=None, pooling=None)
+        base_model = applications.densenet.DenseNet121(include_top=False, weights='imagenet', pooling=None)
         preprocess_func = applications.densenet.preprocess_input
         pooling = GlobalAveragePooling2D()
 
@@ -621,7 +626,8 @@ def trainable_model(input_shape=(800, 800, 1), feature_size=18, base_model='resn
     x = MyPreprocess()(x)
     # scale_layer = Rescaling(scale=1 / 127.5, offset=-1)
     # x = Conv2D(3,(1,1),padding='same')(grayscale_input) 
- 
+    x = preprocess_func(x)
+    
     x = base_model(x, training=True)
     x = pooling(x)
 
@@ -636,8 +642,8 @@ def trainable_model(input_shape=(800, 800, 1), feature_size=18, base_model='resn
 
     # Common part
     x = Dropout(0.3)(x)
-    x = Dense(256)(x)
-    x = Dropout(0.3)(x)
+    # x = Dense(256)(x)
+    # x = Dropout(0.3)(x)
     x = Dense(1, activation='sigmoid')(x)
 
     if expansion:
