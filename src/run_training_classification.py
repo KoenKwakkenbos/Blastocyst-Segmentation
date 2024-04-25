@@ -188,9 +188,9 @@ def main():
         # lr_callback = LearningRateScheduler(scheduler)
 
         # early stopping
-        early_stopping = EarlyStopping(monitor='val_loss', patience=30, restore_best_weights=True)
+        early_stopping = EarlyStopping(monitor='val_loss', patience=50, restore_best_weights=True)
         reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.1,
-                              patience=10, min_lr=0.0001)
+                              patience=30, min_lr=0.0001)
 
         # init wandb run
         run = wandb.init(
