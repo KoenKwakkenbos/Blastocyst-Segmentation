@@ -120,8 +120,8 @@ class ClassificationDataGenerator(keras.utils.Sequence):
         self.transform = A.Compose([
             A.HorizontalFlip(p=0.75),
             A.VerticalFlip(p=0.75),
-            A.Rotate(limit=270, p=0.75, border_mode=cv2.BORDER_CONSTANT),
-            A.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.0, rotate_limit=0, p=0.75, border_mode=cv2.BORDER_CONSTANT),
+            A.Rotate(limit=270, p=0.75, border_mode=cv2.BORDER_REPLICATE),
+            A.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.0, rotate_limit=0, p=0.75, border_mode=cv2.BORDER_REPLICATE),
             # A.RandomRotate90(p=0.75),
             A.RandomBrightnessContrast(brightness_limit=(-0.2, 0.2), contrast_limit=(-0.15, 0.15), p=0.75),
             # A.RandomGamma(p=0.5),
@@ -300,12 +300,12 @@ class ClassificationDataGenerator(keras.utils.Sequence):
                     # img_cropped = cv2.resize(img_cropped, (self.dim[0], self.dim[1]))
                 
                     # min_max norm
-                    img = augmented['image'] * augmented['mask']
+                    # img = augmented['image'] * augmented['mask']
                     # img = cv2.normalize(augmented['image'], None, 0, 1, cv2.NORM_MINMAX, cv2.CV_32F, mask=augmented['mask'])
 
-                    X[i,] = np.expand_dims(img, -1)
+                    X[i,] = np.expand_dims(augmented['image'], -1)
                 else:
-                    img, mask = self.center_image_and_mask(img * mask, mask)
+                    img, mask = self.center_image_and_mask(img, mask)
                     # img = cv2.normalize(img*mask, None, 0, 1, cv2.NORM_MINMAX, cv2.CV_32F, mask=mask)
                     X[i,] = np.expand_dims(img, -1)
             

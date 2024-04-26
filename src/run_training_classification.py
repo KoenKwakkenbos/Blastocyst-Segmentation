@@ -180,7 +180,7 @@ def main():
         #plt.imshow(X[2].reshape(800, 800), cmap='gray')
         #plt.show()
 
-        # model = small_cnn(input_shape=(800, 800, 1))
+        # model = small_cnn(input_shape=(800, 800, 1), expansion=False)
 
         model.compile(optimizer=Adam(learning_rate=experiment['lr']), loss=experiment['loss'], metrics=['accuracy', AUC(name='auc')])
 
