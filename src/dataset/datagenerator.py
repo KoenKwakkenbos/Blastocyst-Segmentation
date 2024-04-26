@@ -123,10 +123,10 @@ class ClassificationDataGenerator(keras.utils.Sequence):
             A.Rotate(limit=270, p=0.75, border_mode=cv2.BORDER_CONSTANT),
             A.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.0, rotate_limit=0, p=0.75, border_mode=cv2.BORDER_CONSTANT),
             # A.RandomRotate90(p=0.75),
-            A.RandomBrightnessContrast(brightness_limit=(-0.1, 0.1), contrast_limit=(-0.1, 0.1), p=0.75),
+            A.RandomBrightnessContrast(brightness_limit=(-0.2, 0.2), contrast_limit=(-0.15, 0.15), p=0.75),
             # A.RandomGamma(p=0.5),
-            # A.GaussNoise(var_limit=(0, 200), p=0.75),
-            A.Defocus(radius=(1, 3), p=0.75)
+            A.GaussNoise(var_limit=(0, 200), p=0.75),
+            # A.Defocus(radius=(1, 3), p=0.75)
         ])
         self.mode = mode
         self.mask_path = mask_path

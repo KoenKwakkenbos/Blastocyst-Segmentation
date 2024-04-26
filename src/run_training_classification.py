@@ -182,15 +182,15 @@ def main():
 
         # model = small_cnn(input_shape=(800, 800, 1))
 
-        model.compile(optimizer=SGD(learning_rate=experiment['lr']), loss=experiment['loss'], metrics=['accuracy', AUC(name='auc')])
+        model.compile(optimizer=Adam(learning_rate=experiment['lr']), loss=experiment['loss'], metrics=['accuracy', AUC(name='auc')])
 
         # lr scheduler
         # lr_callback = LearningRateScheduler(scheduler)
 
         # early stopping
-        early_stopping = EarlyStopping(monitor='val_loss', patience=50, restore_best_weights=True)
+        early_stopping = EarlyStopping(monitor='val_loss', patience=30, restore_best_weights=True)
         reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.1,
-                              patience=30, min_lr=0.0001)
+                              patience=15, min_lr=0.0001)
 
         # init wandb run
         run = wandb.init(

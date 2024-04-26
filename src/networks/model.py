@@ -567,9 +567,9 @@ def transfer_model(input_shape=(800, 800, 1), feature_size=18, base_model='resne
 
     x = MyPreprocess()(x)
 
-    # x = preprocess_func(x)
+    x = preprocess_func(x)
 
-    x = BatchNormalization()(x)
+    # x = BatchNormalization(renorm=True)(x)
 
     x = base_model(x, training=False)
     x = pooling(x)
@@ -584,8 +584,9 @@ def transfer_model(input_shape=(800, 800, 1), feature_size=18, base_model='resne
         x = Dense(64, activation='relu')(x)
 
     # Common part
-    x = Dropout(0.2)(x)
-    # x = Dense(32, activation='relu')(x)
+    # x = Dropout(0.2)(x)
+    x = Dense(1024, activation='relu')(x)
+    x = Dense(256, activation='relu')(x)
     x = Dense(1, activation='sigmoid')(x)
 
     if expansion:
