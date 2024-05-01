@@ -113,19 +113,19 @@ class ClassificationDataGenerator(keras.utils.Sequence):
         self.augmentation = augmentation
         if feature_df is not None:
             self.feature_df = pd.read_csv(feature_df).set_index('Unnamed: 0').drop('label_p', axis=1).drop('label_i', axis=1)
-            self.feature_df = self.feature_df[self.feature_df.columns[:17]]
+            # self.feature_df = self.feature_df[self.feature_df.columns[:17]]
             # TODO remove this
         else:
             self.feature_df = None
         self.transform = A.Compose([
             A.HorizontalFlip(p=0.75),
             A.VerticalFlip(p=0.75),
-            A.Rotate(limit=270, p=0.75, border_mode=cv2.BORDER_REPLICATE),
-            A.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.0, rotate_limit=0, p=0.75, border_mode=cv2.BORDER_REPLICATE),
-            # A.RandomRotate90(p=0.75),
+            A.Rotate(limit=270, p=0.75, border_mode=cv2.BORDER_CONSTANT),
+            A.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.0, rotate_limit=0, p=0.75, border_mode=cv2.BORDER_CONSTANT),
+            A.RandomRotate90(p=0.75),
             A.RandomBrightnessContrast(brightness_limit=(-0.2, 0.2), contrast_limit=(-0.15, 0.15), p=0.75),
             # A.RandomGamma(p=0.5),
-            A.GaussNoise(var_limit=(0, 200), p=0.75),
+            # A.GaussNoise(var_limit=(0, 200), p=0.75),
             # A.Defocus(radius=(1, 3), p=0.75)
         ])
         self.mode = mode
@@ -179,6 +179,16 @@ class ClassificationDataGenerator(keras.utils.Sequence):
             xmin = max(xmin - 10, 0)
             xmax = min(xmax + 10, self.dim[1])
 
+            # make sure y and x ranges are equal:
+            if ymax - ymin > xmax - xmin:
+                diff = ymax - ymin - xmax + xmin
+                xmin = max(xmin - diff // 2, 0)
+                xmax = min(xmax + diff - diff // 2, image.shape[1])
+            elif xmax - xmin > ymax - ymin:
+                diff = xmax - xmin - ymax + ymin
+                ymin = max(ymin - diff // 2, 0)
+                ymax = min(ymax + diff - diff // 2, image.shape[0])
+
             new_img = image[ymin:ymax, xmin:xmax]
             new_mask = mask[ymin:ymax, xmin:xmax]
     
@@ -224,8 +234,8 @@ class ClassificationDataGenerator(keras.utils.Sequence):
     def __data_generation(self, list_IDs_temp):
         'Generates data containing batch_size samples'
         # Initialization
-        X = np.empty((self.batch_size, *self.dim), dtype=float)
-        y = np.empty(self.batch_size, dtype=float)
+        X = np.empty((self.batch_size, *self.dim), dtype=np.float32)
+        y = np.empty(self.batch_size, dtype=np.int8)
 
         if self.mode != 1:
             X_mask = np.empty((self.batch_size, *self.dim), dtype=np.uint8)
@@ -236,13 +246,14 @@ class ClassificationDataGenerator(keras.utils.Sequence):
 
                 # Read image and mask
                 img = self.read_image(os.path.join(self.img_path, str(int(ID)) + '.jpg'))
+                X[i] = np.expand_dims(img, -1)
                 # X[i,] = np.stack((img,)*3, axis=-1)
-                X[i,] = np.expand_dims(img, -1)
+                # X[i,] = np.expand_dims(img, -1)
                 y[i] = self.labels.loc[ID, 'outcome']
 
                 if self.augmentation:
-                    augmented = self.transform(image=X[i,])
-                    X[i,] = augmented['image']
+                    augmented = self.transform(image=img)
+                    X[i,] = np.expand_dims(augmented['image'], -1)
 
             if self.feature_df is not None:
                 features = self.feature_df.loc[np.array(list_IDs_temp)].values
@@ -262,6 +273,7 @@ class ClassificationDataGenerator(keras.utils.Sequence):
 
                 y[i] = self.labels.loc[ID, 'outcome']
 
+                
                 if self.augmentation:
                     augmented = self.transform(image=X[i,], mask=X_mask[i])
                     X[i,] = augmented['image']
@@ -280,39 +292,37 @@ class ClassificationDataGenerator(keras.utils.Sequence):
             # Generate data
             for i, ID in enumerate(list_IDs_temp):
 
+                try:
+                    ID = str(int(ID))
+                except:
+                    ID = ID
+
                 # Read image and mask
-                img = self.read_image(os.path.join(self.img_path, str(int(ID)) + '.jpg'))
-                mask = (self.read_image(os.path.join(self.mask_path, str(int(ID)) + '_mask.tif')) / 255).astype(np.uint8)
+                img = self.read_image(os.path.join(self.img_path, ID + '.jpg'))
+                mask = (self.read_image(os.path.join(self.mask_path, ID + '_mask.tif')) / 255).astype(np.uint8)
 
                 y[i] = self.labels.loc[ID, 'outcome']
 
                 if self.augmentation:
-                    # X[i,] = np.expand_dims(augmented['image'] * augmented['mask'], -1)
-
-                        # Crop around the mask
-                    img_cropped, mask_cropped = self.center_image_and_mask(img, mask)
+                    # Crop around the mask
+                    img_cropped, mask_cropped = self.center_image_and_mask(img, mask, scale=False)
                     
                     augmented = self.transform(image=img_cropped, mask=mask_cropped)
-                    # # pad 10 pixels around the cropped image 
-                    # img_cropped = cv2.copyMakeBorder(img_cropped, 10, 10, 10, 10, cv2.BORDER_CONSTANT, value=0)
-
-                    # # Pad to original size if necessary
-                    # img_cropped = cv2.resize(img_cropped, (self.dim[0], self.dim[1]))
                 
                     # min_max norm
                     # img = augmented['image'] * augmented['mask']
                     # img = cv2.normalize(augmented['image'], None, 0, 1, cv2.NORM_MINMAX, cv2.CV_32F, mask=augmented['mask'])
 
-                    X[i,] = np.expand_dims(augmented['image'], -1)
+                    X[i,] = np.expand_dims(augmented['image'] * augmented['mask'], -1)
                 else:
-                    img, mask = self.center_image_and_mask(img, mask)
+                    img, mask = self.center_image_and_mask(img, mask, scale=False)
                     # img = cv2.normalize(img*mask, None, 0, 1, cv2.NORM_MINMAX, cv2.CV_32F, mask=mask)
-                    X[i,] = np.expand_dims(img, -1)
+                    X[i,] = np.expand_dims(img * mask, -1)
             
                 # ELSE!
 
             if self.feature_df is not None:
-                features = self.feature_df.loc[np.array(list_IDs_temp)].values
+                features = self.feature_df.loc[np.array(list_IDs_temp)]['age'].values
                 return [X, features], y
             return X, y
     
@@ -323,7 +333,7 @@ if __name__ == "__main__":
 
     df_label = pd.read_csv(df_path).set_index('ID')
 
-    datagen = ClassificationDataGenerator(list_IDs=df_label.index, img_path=IMG_PATH, shuffle=False, augmentation=True, label_df=df_label, batch_size=8, dim=(800, 800), n_channels=1, mode=3, mask_path=IMG_PATH+'masks/')
+    datagen = ClassificationDataGenerator(list_IDs=df_label.index, img_path=IMG_PATH, shuffle=True, augmentation=False, label_df=df_label, batch_size=8, dim=(800, 800), n_channels=1, mode=3, mask_path=IMG_PATH+'masks/')
 
     for i in range(20):
         X, y = datagen.__getitem__(i)

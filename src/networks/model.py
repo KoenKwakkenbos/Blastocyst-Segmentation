@@ -14,6 +14,11 @@ from tensorflow.keras.layers import Conv2D, MaxPooling2D, Conv2DTranspose, conca
 from tensorflow.keras import Model
 from tensorflow.keras import applications
 import tensorflow.keras.backend as K
+from tensorflow.keras.models import load_model
+
+import tensorflow
+
+
 
 class MyPreprocess( Layer ) :
     # source: https://stackoverflow.com/questions/52503396/copy-gray-scale-image-content-to-3-channels
@@ -533,7 +538,7 @@ def build_resnet50(input_shape=(800, 800, 1), normalization='min_max', print_sum
     return model
 
 
-def transfer_model(input_shape=(800, 800, 1), feature_size=18, base_model='resnet50', expansion=False, finetune=False):
+def transfer_model(input_shape=(800, 800, 1), feature_size=1, base_model='resnet50', expansion=False, finetune=False):
     if base_model == 'resnet50':
         base_model = applications.resnet.ResNet50(include_top=False, weights='imagenet', pooling=None)
         preprocess_func = applications.resnet.preprocess_input
@@ -566,27 +571,38 @@ def transfer_model(input_shape=(800, 800, 1), feature_size=18, base_model='resne
     # x = Conv2D(3,(1,1),padding='same')(grayscale_input) 
 
     x = MyPreprocess()(x)
-
+    # x = tensorflow.cast(x, "float32")
     x = preprocess_func(x)
 
     # x = BatchNormalization(renorm=True)(x)
 
     x = base_model(x, training=False)
     x = pooling(x)
+    # x = Dense(1024, activation='relu')(x)
+    # x = Dense(32, activation='relu')(x)
+
+    
+    x = Dense(16, activation='relu')(x)
 
     if expansion:
         # Feature part
         feature_input = Input(shape=(feature_size,))
-        y = BatchNormalization()(feature_input)
+        y = Lambda(lambda z: (z-18) / (42-18))(feature_input)
 
         # Combine
         x = concatenate([x, y])
-        x = Dense(64, activation='relu')(x)
+        # x = Dense(16, activation='relu')(x)
 
     # Common part
+    # x = Dropout(0.3)(x)
+    #x = Dropout(0.3)(x)
     # x = Dropout(0.2)(x)
-    x = Dense(1024, activation='relu')(x)
-    x = Dense(256, activation='relu')(x)
+    x = Dense(32, activation=None)(x)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    x = Dense(32, activation=None)(x)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
     x = Dense(1, activation='sigmoid')(x)
 
     if expansion:
@@ -628,6 +644,7 @@ def trainable_model(input_shape=(800, 800, 1), feature_size=18, base_model='resn
     # scale_layer = Rescaling(scale=1 / 127.5, offset=-1)
     # x = Conv2D(3,(1,1),padding='same')(grayscale_input) 
     x = preprocess_func(x)
+    x = Lambda(lambda x: x / 255.)(x)
     
     x = base_model(x, training=True)
     x = pooling(x)
@@ -740,14 +757,39 @@ def small_cnn(input_shape=(800, 800, 1), feature_size=17, expansion=True):
     grayscale_input = Input(shape=input_shape)
     # resize to 224x224
     x = Resizing(224, 224)(grayscale_input)
-    x = Conv2D(32, (3, 3))(x)
+    x = Lambda(lambda x: x / 255)(x)
+
+    # x = BatchNormalization()(grayscale_input)
+    x = Conv2D(64, (7, 7), activation=None)(x)
+    # x = BatchNormalization()(x)
+    x = Activation('relu')(x)
     x = MaxPooling2D()(x)
-    x = Conv2D(32, (3, 3))(x)
+    x = Conv2D(128, (3, 3), activation=None)(x)
+    # x = BatchNormalization()(x)
+    x = Activation('relu')(x)
     x = MaxPooling2D()(x)
-    x = Conv2D(64, (3, 3))(x)
+    x = Conv2D(256, (3, 3), activation=None)(x)
+    # x = BatchNormalization()(x)
+    x = Activation('relu')(x)
     x = MaxPooling2D(2)(x)
-    x = Flatten()(x)
-    x = Dense(32, activation='relu')(x)
+    x = Conv2D(512, (3, 3), activation=None)(x)
+    # x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    # x = MaxPooling2D(2)(x)
+    # x = Conv2D(512, (3, 3), activation=None)(x)
+    # x = BatchNormalization()(x)
+    # x = Activation('relu')(x)
+    # x = MaxPooling2D(2)(x)
+    # x = Conv2D(512, (3, 3), activation=None)(x)
+    # x = BatchNormalization()(x)
+    # x = Activation('relu')(x)
+    x = GlobalAveragePooling2D()(x)
+    x = Dense(256, activation=None)(x)
+    # x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    x = Dense(128, activation=None)(x)
+    # x = BatchNormalization()(x)
+    x = Activation('relu')(x)
     #x = Dropout(0.5)(x)
 
     if expansion:
@@ -772,6 +814,24 @@ def small_cnn(input_shape=(800, 800, 1), feature_size=17, expansion=True):
     return model
 
 
+def rdunet_features(input_shape=(800, 800, 1)):
+    base_model = load_model(r"C:\Users\koenk\Documents\Master_Thesis\Programming\experiment_015\Blast_segmentation_model_20240410.h5", compile=False)
+    feature_extractor = Model(inputs=base_model.input, outputs=base_model.get_layer('activation_13').output)
+
+    feature_extractor.trainable = False
+
+    input = Input(shape=input_shape)
+    x = feature_extractor(input)
+    x = GlobalAveragePooling2D()(x)
+    x = Dense(1024, activation='relu')(x)
+    x = Dense(256, activation='relu')(x)
+    x = Dense(1, activation='sigmoid')(x)
+
+    model = Model(inputs=[input], outputs=[x])
+
+    return model
+    
+
 if __name__ == '__main__':
     print("This module contains functions to build U-Net models.")
     
@@ -783,5 +843,5 @@ if __name__ == '__main__':
     # model = transfer_model(input_shape=(800, 800, 1), expansion=True)
     # print(model.summary())
 
-    model = transfer_model(base_model='densenet121', expansion=False, feature_size=18)
+    model = transfer_model((800, 800, 1))
     print(model.summary())

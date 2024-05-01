@@ -14,7 +14,7 @@ from sklearn.metrics import f1_score, recall_score, precision_score, accuracy_sc
 
 from dataset.datagenerator import ClassificationDataGenerator
 # from utils.loss_functions import dice_loss, weighted_bce_dice_loss
-from networks.model import build_resnet50, transfer_model, trainable_model, model_rad, small_cnn
+from networks.model import build_resnet50, transfer_model, trainable_model, model_rad, small_cnn, rdunet_features
 from utils.postprocessing import postprocessing
 from utils.metrics import specificity_score, save_loss_curve
 from wandb.keras import WandbMetricsLogger
@@ -141,16 +141,16 @@ def main():
 
         # oversampling:
         if experiment['oversampling']:
-            train_ids = train_ids * 5
+            train_ids = train_ids * 20
  
-        # Initialize datagenerators
+        # Initialize datageneratorsimg_cropped
         train_datagen = ClassificationDataGenerator(list_IDs=train_ids,
                                       img_path=experiment['img_dir'],
                                       label_df=pd.read_csv(experiment['label_file']).set_index('ID'),
                                       batch_size=experiment['batch_size'],
                                       dim=(800, 800),
                                       n_channels=1,
-                                      augmentation=['augmentation'],
+                                      augmentation=experiment['augmentation'],
                                       mask_path=experiment['img_dir']+'/masks/',
                                       mode=3,
                                       feature_df=args.expansion)
@@ -171,16 +171,17 @@ def main():
         # model = trainable_model(input_shape=(800, 800, 1), expansion=experiment['expansion'], base_model=experiment['model'])
         # model = model_rad(input_shape=(800, 800, 1))
 
-        X, y = train_datagen.__getitem__(0)
-        plt.imshow(X[0].reshape(800, 800), cmap='gray')
+        # X, y = train_datagen.__getitem__(1)
+        # plt.imshow(X[0][0].reshape(800, 800), cmap='gray')
         # print(X[1][0])
-        plt.show()
+        # plt.show()
         # plt.imshow(X[1].reshape(800, 800), cmap='gray')
-        #plt.show()
-        #plt.imshow(X[2].reshape(800, 800), cmap='gray')
-        #plt.show()
+        # plt.show()
+        # plt.imshow(X[2].reshape(800, 800), cmap='gray')
+        # plt.show()
 
         # model = small_cnn(input_shape=(800, 800, 1), expansion=False)
+        # model = rdunet_features()
 
         model.compile(optimizer=Adam(learning_rate=experiment['lr']), loss=experiment['loss'], metrics=['accuracy', AUC(name='auc')])
 
@@ -207,18 +208,19 @@ def main():
 
         # Test the model and append results to csv file
        
-        predictions, labels = [], []
+        predictions, predictions_prob, labels = [], [], []
 
         for test_images, label in test_datagen:
             preds_test = model.predict(test_images)
 
-            preds_test = preds_test > 0.5
-            predictions.extend(preds_test)
+            preds_test_th = preds_test > 0.5
+            predictions.extend(preds_test_th)
+            predictions_prob.extend(preds_test)
             labels.extend(label)
 
         # Calculate metrics            
         experiment_results[f"Fold{fold+1}_accuracyscore"] = accuracy_score(labels, predictions)
-        experiment_results[f"Fold{fold+1}_roc_aucscore"] = roc_auc_score(labels, predictions)
+        experiment_results[f"Fold{fold+1}_roc_aucscore"] = roc_auc_score(labels, predictions_prob)
         experiment_results[f"Fold{fold+1}_sensitivityscore"] = recall_score(labels, predictions)
         experiment_results[f"Fold{fold+1}_specificityscore"] = specificity_score(labels, predictions)
         experiment_results[f"Fold{fold+1}_precisionscore"] = precision_score(labels, predictions)
