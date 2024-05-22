@@ -753,7 +753,7 @@ def model_rad(input_shape=(800, 800, 1)):
 #     model = Model(inputs=[grayscale_input], outputs=[x])
 #     return model
 
-def small_cnn(input_shape=(800, 800, 1), feature_size=17, expansion=True):
+def small_cnn(input_shape=(800, 800, 1), feature_size=1, expansion=True):
     grayscale_input = Input(shape=input_shape)
     # resize to 224x224
     x = Resizing(224, 224)(grayscale_input)
@@ -761,48 +761,48 @@ def small_cnn(input_shape=(800, 800, 1), feature_size=17, expansion=True):
 
     # x = BatchNormalization()(grayscale_input)
     x = Conv2D(64, (7, 7), activation=None)(x)
-    # x = BatchNormalization()(x)
+    x = BatchNormalization()(x)
     x = Activation('relu')(x)
     x = MaxPooling2D()(x)
     x = Conv2D(128, (3, 3), activation=None)(x)
-    # x = BatchNormalization()(x)
+    x = BatchNormalization()(x)
     x = Activation('relu')(x)
     x = MaxPooling2D()(x)
     x = Conv2D(256, (3, 3), activation=None)(x)
-    # x = BatchNormalization()(x)
+    x = BatchNormalization()(x)
     x = Activation('relu')(x)
     x = MaxPooling2D(2)(x)
     x = Conv2D(512, (3, 3), activation=None)(x)
-    # x = BatchNormalization()(x)
+    x = BatchNormalization()(x)
     x = Activation('relu')(x)
-    # x = MaxPooling2D(2)(x)
-    # x = Conv2D(512, (3, 3), activation=None)(x)
-    # x = BatchNormalization()(x)
-    # x = Activation('relu')(x)
-    # x = MaxPooling2D(2)(x)
-    # x = Conv2D(512, (3, 3), activation=None)(x)
-    # x = BatchNormalization()(x)
-    # x = Activation('relu')(x)
+    x = MaxPooling2D(2)(x)
+    x = Conv2D(512, (3, 3), activation=None)(x)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    x = MaxPooling2D(2)(x)
+    x = Conv2D(512, (3, 3), activation=None)(x)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
     x = GlobalAveragePooling2D()(x)
     x = Dense(256, activation=None)(x)
-    # x = BatchNormalization()(x)
+    x = BatchNormalization()(x)
     x = Activation('relu')(x)
-    x = Dense(128, activation=None)(x)
-    # x = BatchNormalization()(x)
+    x = Dense(32, activation=None)(x)
+    x = BatchNormalization()(x)
     x = Activation('relu')(x)
     #x = Dropout(0.5)(x)
 
     if expansion:
         # Feature part
         feature_input = Input(shape=(feature_size,))
-        # y = BatchNormalization()(feature_input)
+        y = Lambda(lambda z: (z-18) / (42-18))(feature_input)
         
-        y = Dense(32, activation='relu')(feature_input)
+        #y = Dense(32, activation='relu')(feature_input)
 
         # Combine
         x = concatenate([x, y])
         x = Dense(64, activation='relu')(x)
-        x = Dropout(0.3)(x)
+        # x = Dropout(0.3)(x)
 
     x = Dense(1, activation='sigmoid')(x)
 
@@ -832,6 +832,233 @@ def rdunet_features(input_shape=(800, 800, 1)):
     return model
     
 
+# def fusion_model(input_shape=(800, 800, 1), feature_size=30, base_model='resnet50'):
+#     if base_model == 'resnet50':
+#         base_model = applications.resnet.ResNet50(include_top=False, weights='imagenet', pooling=None)
+#         preprocess_func = applications.resnet.preprocess_input
+#         pooling = GlobalAveragePooling2D()
+#     elif base_model == 'xception':
+#         base_model = applications.xception.Xception(include_top=False, weights='imagenet', pooling=None)
+#         preprocess_func = applications.xception.preprocess_input
+#         pooling = GlobalAveragePooling2D()
+#     elif base_model == 'vgg16':
+#         base_model = applications.vgg16.VGG16(include_top=False, weights='imagenet', pooling=None)
+#         preprocess_func = applications.vgg16.preprocess_input
+#         pooling = Flatten()
+#     elif base_model == 'densenet121':
+#         base_model = applications.densenet.DenseNet121(include_top=False, weights='imagenet', pooling=None)
+#         preprocess_func = applications.densenet.preprocess_input
+#         pooling = GlobalAveragePooling2D()
+
+#     base_model.trainable = False
+
+#     # Image part
+#     grayscale_input = Input(shape=input_shape)
+
+#     # resize to 224x224x3
+#     # x = Resizing(224, 224)(grayscale_input)
+#     x = MyPreprocess()(grayscale_input)
+#     x = preprocess_func(x)
+
+#     x = base_model(x, training=False)
+#     x = pooling(x)
+    
+#     x = Dense(8, activation='relu')(x)
+#     x = Dropout(0.2)(x)
+
+#     feature_input = Input(shape=(feature_size,))
+#     y = Dense(32, activation='relu')(feature_input)
+#     y = Dropout(0.2)(y)
+
+#     x = concatenate([x, y])
+
+#     x = Dense(32, activation=None)(x)
+#     x = Activation('relu')(x)
+#     x = Dense(1, activation='sigmoid')(x)
+
+#     model = Model(inputs=[grayscale_input, feature_input], outputs=[x])
+
+#     return model
+
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Input, Dense, Dropout, GlobalAveragePooling2D, Flatten, concatenate, Activation, BatchNormalization
+from tensorflow.keras import applications
+from tensorflow.keras.regularizers import l2
+
+# def fusion_model(input_shape=(800, 800, 1), feature_size=30, base_model='resnet50'):
+#     if base_model == 'resnet50':
+#         base_model = applications.resnet.ResNet50(include_top=False, weights='imagenet', pooling=None)
+#         preprocess_func = applications.resnet.preprocess_input
+#         pooling = GlobalAveragePooling2D()
+#     elif base_model == 'xception':
+#         base_model = applications.xception.Xception(include_top=False, weights='imagenet', pooling=None)
+#         preprocess_func = applications.xception.preprocess_input
+#         pooling = GlobalAveragePooling2D()
+#     elif base_model == 'vgg16':
+#         base_model = applications.vgg16.VGG16(include_top=False, weights='imagenet', pooling=None)
+#         preprocess_func = applications.vgg16.preprocess_input
+#         pooling = Flatten()
+#     elif base_model == 'densenet121':
+#         base_model = applications.densenet.DenseNet121(include_top=False, weights='imagenet', pooling=None)
+#         preprocess_func = applications.densenet.preprocess_input
+#         pooling = GlobalAveragePooling2D()
+
+#     base_model.trainable = False
+
+#     # Image part
+#     grayscale_input = Input(shape=input_shape)
+#     x = MyPreprocess()(grayscale_input)
+#     x = preprocess_func(x)
+#     x = base_model(x, training=False)
+#     x = pooling(x)
+    
+#     x = Dense(32, activation='relu', kernel_regularizer=l2(0.01))(x)
+#     x = Dropout(0.5)(x)
+#     x = BatchNormalization()(x)
+
+#     feature_input = Input(shape=(feature_size,))
+#     y = Dense(32, activation='relu', kernel_regularizer=l2(0.01))(feature_input)
+#     y = Dropout(0.5)(y)
+#     y = BatchNormalization()(y)
+
+#     x = concatenate([x, y])
+
+#     x = Dense(128, activation='relu', kernel_regularizer=l2(0.01))(x)
+#     x = Dropout(0.5)(x)
+#     x = BatchNormalization()(x)
+    
+#     x = Dense(128, activation='relu', kernel_regularizer=l2(0.01))(x)
+#     x = Dropout(0.5)(x)
+#     x = BatchNormalization()(x)
+
+#     x = Dense(1, activation='sigmoid')(x)
+
+#     model = Model(inputs=[grayscale_input, feature_input], outputs=[x])
+
+#     return model
+
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Input, Dense, Dropout, GlobalAveragePooling2D, Flatten, concatenate, Activation, BatchNormalization, LeakyReLU
+from tensorflow.keras import applications
+from tensorflow.keras.regularizers import l2
+
+# def fusion_model(input_shape=(800, 800, 1), feature_size=30, base_model='resnet50'):
+#     if base_model == 'resnet50':
+#         base_model = applications.resnet.ResNet50(include_top=False, weights='imagenet', pooling=None)
+#         preprocess_func = applications.resnet.preprocess_input
+#         pooling = GlobalAveragePooling2D()
+#     elif base_model == 'xception':
+#         base_model = applications.xception.Xception(include_top=False, weights='imagenet', pooling=None)
+#         preprocess_func = applications.xception.preprocess_input
+#         pooling = GlobalAveragePooling2D()
+#     elif base_model == 'vgg16':
+#         base_model = applications.vgg16.VGG16(include_top=False, weights='imagenet', pooling=None)
+#         preprocess_func = applications.vgg16.preprocess_input
+#         pooling = Flatten()
+#     elif base_model == 'densenet121':
+#         base_model = applications.densenet.DenseNet121(include_top=False, weights='imagenet', pooling=None)
+#         preprocess_func = applications.densenet.preprocess_input
+#         pooling = GlobalAveragePooling2D()
+
+#     base_model.trainable = False
+
+#     # Image part
+#     grayscale_input = Input(shape=input_shape)
+#     x = MyPreprocess()(grayscale_input)
+#     x = preprocess_func(x)
+#     x = base_model(x, training=False)
+#     x = pooling(x)
+    
+#     x = Dense(256, activation='relu', kernel_regularizer=l2(0.01))(x)
+#     x = Dropout(0.5)(x)
+#     x = BatchNormalization()(x)
+
+#     feature_input = Input(shape=(feature_size,))
+#     y = Dense(128, activation='relu', kernel_regularizer=l2(0.01))(feature_input)
+#     y = Dropout(0.5)(y)
+#     y = BatchNormalization()(y)
+
+#     x = concatenate([x, y])
+
+#     x = Dense(256, activation='relu', kernel_regularizer=l2(0.01))(x)
+#     x = Dropout(0.5)(x)
+#     x = BatchNormalization()(x)
+    
+#     x = Dense(128, activation='relu', kernel_regularizer=l2(0.01))(x)
+#     x = Dropout(0.5)(x)
+#     x = BatchNormalization()(x)
+
+#     x = Dense(64, activation='relu', kernel_regularizer=l2(0.01))(x)
+#     x = Dropout(0.5)(x)
+#     x = BatchNormalization()(x)
+
+#     x = Dense(1, activation='sigmoid')(x)
+
+#     model = Model(inputs=[grayscale_input, feature_input], outputs=[x])
+
+#     return model
+
+def fusion_model(input_shape=(800, 800, 1), feature_size=30, base_model='resnet50'):
+    if base_model == 'resnet50':
+        base_model = applications.resnet.ResNet50(include_top=False, weights='imagenet', pooling=None)
+        preprocess_func = applications.resnet.preprocess_input
+        pooling = GlobalAveragePooling2D()
+    elif base_model == 'xception':
+        base_model = applications.xception.Xception(include_top=False, weights='imagenet', pooling=None)
+        preprocess_func = applications.xception.preprocess_input
+        pooling = GlobalAveragePooling2D()
+    elif base_model == 'vgg16':
+        base_model = applications.vgg16.VGG16(include_top=False, weights='imagenet', pooling=None)
+        preprocess_func = applications.vgg16.preprocess_input
+        pooling = Flatten()
+    elif base_model == 'densenet121':
+        base_model = applications.densenet.DenseNet121(include_top=False, weights='imagenet', pooling=None)
+        preprocess_func = applications.densenet.preprocess_input
+        pooling = GlobalAveragePooling2D()
+
+    base_model.trainable = False
+
+    # Image part
+    grayscale_input = Input(shape=input_shape)
+    x = MyPreprocess()(grayscale_input)  # Assume MyPreprocess is defined elsewhere
+    x = preprocess_func(x)
+    x = base_model(x, training=False)
+    x = pooling(x)
+    
+    x = Dense(256, activation=None, kernel_regularizer=l2(0.01))(x)
+    x = LeakyReLU(alpha=0.01)(x)
+    x = Dropout(0.5)(x)
+    x = BatchNormalization()(x)
+
+    feature_input = Input(shape=(feature_size,))
+    y = Dense(128, activation=None, kernel_regularizer=l2(0.01))(feature_input)
+    y = LeakyReLU(alpha=0.01)(y)
+    y = Dropout(0.5)(y)
+    y = BatchNormalization()(y)
+
+    x = concatenate([x, y])
+
+    x = Dense(256, activation=None, kernel_regularizer=l2(0.01))(x)
+    x = LeakyReLU(alpha=0.01)(x)
+    x = Dropout(0.5)(x)
+    x = BatchNormalization()(x)
+    
+    x = Dense(128, activation=None, kernel_regularizer=l2(0.01))(x)
+    x = LeakyReLU(alpha=0.01)(x)
+    x = Dropout(0.5)(x)
+    x = BatchNormalization()(x)
+
+    x = Dense(64, activation=None, kernel_regularizer=l2(0.01))(x)
+    x = LeakyReLU(alpha=0.01)(x)
+    x = Dropout(0.5)(x)
+    x = BatchNormalization()(x)
+
+    final_output = Dense(1, activation='sigmoid')(x)
+
+    model = Model(inputs=[grayscale_input, feature_input], outputs=[final_output])
+
+    return model
+
 if __name__ == '__main__':
     print("This module contains functions to build U-Net models.")
     
@@ -843,5 +1070,5 @@ if __name__ == '__main__':
     # model = transfer_model(input_shape=(800, 800, 1), expansion=True)
     # print(model.summary())
 
-    model = transfer_model((800, 800, 1))
+    model = fusion_model((800, 800, 1))
     print(model.summary())

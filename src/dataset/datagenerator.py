@@ -112,8 +112,7 @@ class ClassificationDataGenerator(keras.utils.Sequence):
         self.shuffle = shuffle
         self.augmentation = augmentation
         if feature_df is not None:
-            self.feature_df = pd.read_csv(feature_df).set_index('Unnamed: 0').drop('label_p', axis=1).drop('label_i', axis=1)
-            # self.feature_df = self.feature_df[self.feature_df.columns[:17]]
+            self.feature_df = feature_df
             # TODO remove this
         else:
             self.feature_df = None
@@ -142,7 +141,7 @@ class ClassificationDataGenerator(keras.utils.Sequence):
         indexes = self.indexes[index*self.batch_size:(index+1)*self.batch_size]
 
         # Find list of IDs
-        list_IDs_temp = [self.list_IDs[k] for k in indexes]
+        list_IDs_temp = [int(self.list_IDs[k]) for k in indexes]
 
         # Generate data
         X, y = self.__data_generation(list_IDs_temp)
@@ -254,9 +253,9 @@ class ClassificationDataGenerator(keras.utils.Sequence):
                 if self.augmentation:
                     augmented = self.transform(image=img)
                     X[i,] = np.expand_dims(augmented['image'], -1)
-
+            
             if self.feature_df is not None:
-                features = self.feature_df.loc[np.array(list_IDs_temp)].values
+                features = self.feature_df.loc[np.array(list_IDs_temp)].values.astype('float32')
                 return [X, features], y
             return X, y
             
@@ -291,15 +290,9 @@ class ClassificationDataGenerator(keras.utils.Sequence):
         elif self.mode == 3:
             # Generate data
             for i, ID in enumerate(list_IDs_temp):
-
-                try:
-                    ID = str(int(ID))
-                except:
-                    ID = ID
-
                 # Read image and mask
-                img = self.read_image(os.path.join(self.img_path, ID + '.jpg'))
-                mask = (self.read_image(os.path.join(self.mask_path, ID + '_mask.tif')) / 255).astype(np.uint8)
+                img = self.read_image(os.path.join(self.img_path, str(ID) + '.jpg'))
+                mask = (self.read_image(os.path.join(self.mask_path, str(ID) + '_mask.tif')) / 255).astype(np.uint8)
 
                 y[i] = self.labels.loc[ID, 'outcome']
 
@@ -315,14 +308,14 @@ class ClassificationDataGenerator(keras.utils.Sequence):
 
                     X[i,] = np.expand_dims(augmented['image'] * augmented['mask'], -1)
                 else:
-                    img, mask = self.center_image_and_mask(img, mask, scale=False)
+                    img, mask = self.center_image_and_mask(img, mask, scale=True)
                     # img = cv2.normalize(img*mask, None, 0, 1, cv2.NORM_MINMAX, cv2.CV_32F, mask=mask)
                     X[i,] = np.expand_dims(img * mask, -1)
             
                 # ELSE!
 
             if self.feature_df is not None:
-                features = self.feature_df.loc[np.array(list_IDs_temp)]['age'].values
+                features = self.feature_df.loc[np.array(list_IDs_temp)].values.astype('float32')
                 return [X, features], y
             return X, y
     
