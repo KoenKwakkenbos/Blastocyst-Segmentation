@@ -217,9 +217,17 @@ def main():
         # lr_callback = LearningRateScheduler(scheduler)
 
         # early stopping
-        early_stopping = EarlyStopping(monitor='val_loss', patience=30, restore_best_weights=True)
-        reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.1,
-                              patience=15, min_lr=0.0001)
+        early_stopping = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+        reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=5, min_lr=0.00001)
+
+        # Learning rate warm-up
+        def lr_scheduler(epoch, lr):
+            if epoch < 10:
+                return lr + 0.00001
+            else:
+                return lr
+
+        lr_warmup = LearningRateScheduler(lr_scheduler)
 
         # init wandb run
         run = wandb.init(
@@ -228,7 +236,7 @@ def main():
             name=f'Classification_{experiment["ID"]}_fold_{fold+1}_{experiment["model"]}_expansion_{experiment["expansion"]}_oversampling_{experiment["oversampling"]}_lr_{experiment["lr"]}',
         )
 
-        results = model.fit(train_datagen, validation_data=test_datagen, epochs=experiment['n_epochs'], callbacks=[reduce_lr, early_stopping, WandbMetricsLogger()])
+        results = model.fit(train_datagen, validation_data=test_datagen, epochs=experiment['n_epochs'], callbacks=[reduce_lr, early_stopping, lr_warmup, WandbMetricsLogger()])
         model.save(os.path.join(experiment_folder, f"model_fold_{fold+1}.h5"))
 
         # # Save loss curve
