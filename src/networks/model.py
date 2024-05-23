@@ -998,6 +998,67 @@ from tensorflow.keras.regularizers import l2
 
 #     return model
 
+# def fusion_model(input_shape=(800, 800, 1), feature_size=30, base_model='resnet50'):
+#     if base_model == 'resnet50':
+#         base_model = applications.resnet.ResNet50(include_top=False, weights='imagenet', pooling=None)
+#         preprocess_func = applications.resnet.preprocess_input
+#         pooling = GlobalAveragePooling2D()
+#     elif base_model == 'xception':
+#         base_model = applications.xception.Xception(include_top=False, weights='imagenet', pooling=None)
+#         preprocess_func = applications.xception.preprocess_input
+#         pooling = GlobalAveragePooling2D()
+#     elif base_model == 'vgg16':
+#         base_model = applications.vgg16.VGG16(include_top=False, weights='imagenet', pooling=None)
+#         preprocess_func = applications.vgg16.preprocess_input
+#         pooling = Flatten()
+#     elif base_model == 'densenet121':
+#         base_model = applications.densenet.DenseNet121(include_top=False, weights='imagenet', pooling=None)
+#         preprocess_func = applications.densenet.preprocess_input
+#         pooling = GlobalAveragePooling2D()
+
+#     base_model.trainable = False
+
+#     # Image part
+#     grayscale_input = Input(shape=input_shape)
+#     x = MyPreprocess()(grayscale_input)  # Assume MyPreprocess is defined elsewhere
+#     x = preprocess_func(x)
+#     x = base_model(x, training=False)
+#     x = pooling(x)
+    
+#     x = Dense(256, activation=None, kernel_regularizer=l2(0.01))(x)
+#     x = LeakyReLU(alpha=0.01)(x)
+#     x = Dropout(0.5)(x)
+#     x = BatchNormalization()(x)
+
+#     feature_input = Input(shape=(feature_size,))
+#     y = Dense(128, activation=None, kernel_regularizer=l2(0.01))(feature_input)
+#     y = LeakyReLU(alpha=0.01)(y)
+#     y = Dropout(0.5)(y)
+#     y = BatchNormalization()(y)
+
+#     x = concatenate([x, y])
+
+#     x = Dense(256, activation=None, kernel_regularizer=l2(0.01))(x)
+#     x = LeakyReLU(alpha=0.01)(x)
+#     x = Dropout(0.5)(x)
+#     x = BatchNormalization()(x)
+    
+#     x = Dense(128, activation=None, kernel_regularizer=l2(0.01))(x)
+#     x = LeakyReLU(alpha=0.01)(x)
+#     x = Dropout(0.5)(x)
+#     x = BatchNormalization()(x)
+
+#     x = Dense(64, activation=None, kernel_regularizer=l2(0.01))(x)
+#     x = LeakyReLU(alpha=0.01)(x)
+#     x = Dropout(0.5)(x)
+#     x = BatchNormalization()(x)
+
+#     final_output = Dense(1, activation='sigmoid')(x)
+
+#     model = Model(inputs=[grayscale_input, feature_input], outputs=[final_output])
+
+#     return model
+
 def fusion_model(input_shape=(800, 800, 1), feature_size=30, base_model='resnet50'):
     if base_model == 'resnet50':
         base_model = applications.resnet.ResNet50(include_top=False, weights='imagenet', pooling=None)
@@ -1025,24 +1086,29 @@ def fusion_model(input_shape=(800, 800, 1), feature_size=30, base_model='resnet5
     x = base_model(x, training=False)
     x = pooling(x)
     
-    x = Dense(256, activation=None, kernel_regularizer=l2(0.01))(x)
+    x = Dense(512, activation=None, kernel_regularizer=l2(0.01))(x)
     x = LeakyReLU(alpha=0.01)(x)
     x = Dropout(0.5)(x)
     x = BatchNormalization()(x)
 
     feature_input = Input(shape=(feature_size,))
-    y = Dense(128, activation=None, kernel_regularizer=l2(0.01))(feature_input)
+    y = Dense(256, activation=None, kernel_regularizer=l2(0.01))(feature_input)
     y = LeakyReLU(alpha=0.01)(y)
     y = Dropout(0.5)(y)
     y = BatchNormalization()(y)
 
     x = concatenate([x, y])
 
-    x = Dense(256, activation=None, kernel_regularizer=l2(0.01))(x)
+    x = Dense(512, activation=None, kernel_regularizer=l2(0.01))(x)
     x = LeakyReLU(alpha=0.01)(x)
     x = Dropout(0.5)(x)
     x = BatchNormalization()(x)
     
+    x = Dense(256, activation=None, kernel_regularizer=l2(0.01))(x)
+    x = LeakyReLU(alpha=0.01)(x)
+    x = Dropout(0.5)(x)
+    x = BatchNormalization()(x)
+
     x = Dense(128, activation=None, kernel_regularizer=l2(0.01))(x)
     x = LeakyReLU(alpha=0.01)(x)
     x = Dropout(0.5)(x)

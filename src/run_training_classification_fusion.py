@@ -222,8 +222,8 @@ def main():
 
         # Learning rate warm-up
         def lr_scheduler(epoch, lr):
-            if epoch < 10:
-                return lr + 0.00001
+            if epoch < 9:
+                return lr + 0.0001
             else:
                 return lr
 
